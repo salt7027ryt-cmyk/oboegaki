@@ -82,6 +82,10 @@
   .field{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft)}
   .composer input[type=datetime-local]{border:1px solid var(--line);background:var(--bg);border-radius:8px;
     padding:5px 8px;font-size:12.5px;color:var(--ink);font-family:inherit;outline:none}
+  .composer select{border:1px solid var(--line);background:var(--bg);border-radius:8px;
+    padding:5px 8px;font-size:12.5px;color:var(--ink);font-family:inherit;outline:none}
+  .badge-rep{display:inline-block;font-size:10.5px;color:var(--accent-deep);border:1px solid var(--line);
+    border-radius:8px;padding:1px 7px;margin-left:8px;letter-spacing:.04em;vertical-align:middle}
   .add-btn{margin-left:auto;border:none;cursor:pointer;background:var(--accent-deep);color:#faf9f6;
     padding:8px 18px;border-radius:20px;font-size:13px;letter-spacing:.08em;font-family:inherit;transition:.18s}
   .add-btn:hover{background:var(--ink)}
@@ -180,6 +184,14 @@
     </div>
     <div class="meta">
       <div class="field"><label for="dueInput">リマインド</label><input type="datetime-local" id="dueInput"></div>
+      <div class="field"><label for="repeatInput">繰り返し</label>
+        <select id="repeatInput">
+          <option value="">なし</option>
+          <option value="daily">毎日</option>
+          <option value="weekly">毎週</option>
+          <option value="monthly">毎月</option>
+        </select>
+      </div>
       <button class="add-btn" id="addBtn">追加</button>
     </div>
     <div class="voice-hint" id="voiceHint"></div>
@@ -256,7 +268,17 @@
   }
 
   /* ---------- データ層（Supabase） ---------- */
-  function fromRow(r){ return { id:r.id, title:r.title, due:r.due, done:r.done, notified:r.notified, created:new Date(r.created_at).getTime() }; }
+  function fromRow(r){ return { id:r.id, title:r.title, due:r.due, done:r.done, repeat:r.repeat||"", created:new Date(r.created_at).getTime() }; }
+  function nextDue(iso, repeat){
+    if(!iso) return null;
+    const d=new Date(iso);
+    if(repeat==="daily") d.setDate(d.getDate()+1);
+    else if(repeat==="weekly") d.setDate(d.getDate()+7);
+    else if(repeat==="monthly") d.setMonth(d.getMonth()+1);
+    else return null;
+    return d.toISOString();
+  }
+  function repLabel(r){ return r==="daily"?"毎日":r==="weekly"?"毎週":r==="monthly"?"毎月":""; }
   function cacheKey(){ return "oboegaki.cache."+(currentUser?currentUser.id:"anon"); }
   function cacheGet(){ try{ return JSON.parse(localStorage.getItem(cacheKey()))||[]; }catch(e){ return []; } }
   function cacheSet(t){ try{ localStorage.setItem(cacheKey(), JSON.stringify(t)); }catch(e){} }
@@ -272,16 +294,22 @@
     const input=$("#titleInput"); const title=input.value.trim();
     if(!title){ input.focus(); return; }
     const dueVal=$("#dueInput").value;
-    const row={ title, due: dueVal? new Date(dueVal).toISOString():null, done:false, notified:false };
+    const rep=$("#repeatInput").value;
+    const row={ title, due: dueVal? new Date(dueVal).toISOString():null, done:false, repeat: rep||null };
     const { error } = await client.from("tasks").insert(row);
     if(error){ toast("保存に失敗しました"); return; }
-    input.value=""; $("#dueInput").value=""; $("#voiceHint").textContent=""; input.focus();
+    input.value=""; $("#dueInput").value=""; $("#repeatInput").value=""; $("#voiceHint").textContent=""; input.focus();
     await fetchTasks(); toast("追加しました");
   }
   async function toggle(id){
     const t=tasks.find(x=>x.id===id); if(!t) return;
     const nd=!t.done;
-    await client.from("tasks").update({ done:nd, notified: nd? true : t.notified }).eq("id",id);
+    await client.from("tasks").update({ done:nd }).eq("id",id);
+    // 繰り返しタスクを完了 → 次回分を自動生成
+    if(nd && t.repeat && t.due){
+      const nx=nextDue(t.due, t.repeat);
+      if(nx) await client.from("tasks").insert({ title:t.title, due:nx, repeat:t.repeat, done:false });
+    }
     await fetchTasks();
   }
   async function remove(id){
@@ -319,6 +347,7 @@
     li.innerHTML='<button class="check" aria-label="完了切り替え">'+checkSVG+'</button>'+
       '<div class="body"><div class="title"></div>'+
       (t.due?'<span class="due '+(ds==="overdue"?"is-overdue":ds==="today"?"is-today":"")+'">'+clockSVG+'<span></span></span>':'')+
+      (t.repeat?'<span class="badge-rep">'+repLabel(t.repeat)+'</span>':'')+
       '</div><button class="del" aria-label="削除">'+trashSVG+'</button>';
     li.querySelector(".title").textContent=t.title;
     if(t.due) li.querySelector(".due span").textContent=fmtDue(t.due);
@@ -437,6 +466,29 @@
     const c=cacheGet(); if(c.length){ tasks=c; render(); }
     fetchTasks(); subscribe();
     if(("Notification" in window) && Notification.permission==="granted") enablePush();
+    processUrlActions();
+  }
+  /* 通知ボタン（完了/スヌーズ）からアプリが開かれたときの処理 */
+  async function processUrlActions(){
+    const p=new URLSearchParams(location.search);
+    const done=p.get("done"), snooze=p.get("snooze");
+    if(!done && !snooze) return;
+    try{
+      if(done){
+        const { data } = await client.from("tasks").select("*").eq("id",done).single();
+        if(data && !data.done){
+          await client.from("tasks").update({ done:true }).eq("id",done);
+          if(data.repeat && data.due){ const nx=nextDue(data.due,data.repeat); if(nx) await client.from("tasks").insert({ title:data.title, due:nx, repeat:data.repeat, done:false }); }
+          toast("完了にしました");
+        }
+      } else if(snooze){
+        const when=new Date(Date.now()+15*60*1000).toISOString();
+        await client.from("tasks").update({ due:when, notify_count:0, last_notified:null }).eq("id",snooze);
+        toast("15分後にお知らせします");
+      }
+    }catch(e){}
+    history.replaceState({}, "", location.pathname);
+    fetchTasks();
   }
 
   async function boot(){

@@ -1,5 +1,5 @@
 /* おぼえがき Service Worker — オフライン起動＋プッシュ通知 */
-const CACHE = "oboegaki-v4";
+const CACHE = "oboegaki-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -49,19 +49,28 @@ self.addEventListener("push", (e) => {
     badge: "icon-192.png",
     tag: data.tag || undefined,
     renotify: !!data.tag,
-    data: { url: data.url || "./index.html" }
+    data: { url: data.url || "./index.html", taskId: data.tag || null },
+    actions: data.tag ? [
+      { action: "done", title: "完了" },
+      { action: "snooze", title: "15分後" }
+    ] : []
   };
   e.waitUntil(self.registration.showNotification(title, options));
 });
 
-/* 通知タップ → アプリを開く */
+/* 通知タップ／ボタン → アプリを開いて処理 */
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || "./index.html";
+  const id = e.notification.data && e.notification.data.taskId;
+  let target = "./index.html";
+  if (e.action === "done" && id) target = "./index.html?done=" + id;
+  else if (e.action === "snooze" && id) target = "./index.html?snooze=" + id;
   e.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      for (const c of list) { if ("focus" in c) return c.focus(); }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
+      for (const c of list) {
+        if ("focus" in c) { if (c.navigate) { try { c.navigate(target); } catch (_) {} } return c.focus(); }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
     })
   );
 });
