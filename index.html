@@ -188,8 +188,11 @@
         <select id="repeatInput">
           <option value="">なし</option>
           <option value="daily">毎日</option>
+          <option value="weekdays">平日だけ</option>
           <option value="weekly">毎週</option>
+          <option value="biweekly">隔週</option>
           <option value="monthly">毎月</option>
+          <option value="monthly-nth">毎月第◯曜</option>
         </select>
       </div>
       <button class="add-btn" id="addBtn">追加</button>
@@ -269,16 +272,39 @@
 
   /* ---------- データ層（Supabase） ---------- */
   function fromRow(r){ return { id:r.id, title:r.title, due:r.due, done:r.done, repeat:r.repeat||"", created:new Date(r.created_at).getTime() }; }
+  const WD = ["日","月","火","水","木","金","土"];
+  function nextMonthlyNth(d){
+    const weekday=d.getDay(), nth=Math.floor((d.getDate()-1)/7)+1;
+    const hh=d.getHours(), mm=d.getMinutes(), y=d.getFullYear(), m=d.getMonth();
+    const first=new Date(y, m+1, 1);
+    let day=1 + ((7 + weekday - first.getDay()) % 7) + (nth-1)*7;
+    const daysInMonth=new Date(y, m+2, 0).getDate();
+    if(day>daysInMonth) day-=7; // 第5週が無い月は最終週に寄せる
+    return new Date(y, m+1, day, hh, mm, 0, 0).toISOString();
+  }
   function nextDue(iso, repeat){
     if(!iso) return null;
     const d=new Date(iso);
-    if(repeat==="daily") d.setDate(d.getDate()+1);
-    else if(repeat==="weekly") d.setDate(d.getDate()+7);
-    else if(repeat==="monthly") d.setMonth(d.getMonth()+1);
-    else return null;
+    switch(repeat){
+      case "daily": d.setDate(d.getDate()+1); break;
+      case "weekdays": do{ d.setDate(d.getDate()+1); }while(d.getDay()===0||d.getDay()===6); break;
+      case "weekly": d.setDate(d.getDate()+7); break;
+      case "biweekly": d.setDate(d.getDate()+14); break;
+      case "monthly": d.setMonth(d.getMonth()+1); break;
+      case "monthly-nth": return nextMonthlyNth(d);
+      default: return null;
+    }
     return d.toISOString();
   }
-  function repLabel(r){ return r==="daily"?"毎日":r==="weekly"?"毎週":r==="monthly"?"毎月":""; }
+  function repLabel(r, due){
+    if(r==="daily") return "毎日";
+    if(r==="weekdays") return "平日";
+    if(r==="weekly") return due? "毎週"+WD[new Date(due).getDay()] : "毎週";
+    if(r==="biweekly") return due? "隔週"+WD[new Date(due).getDay()] : "隔週";
+    if(r==="monthly") return "毎月";
+    if(r==="monthly-nth"){ if(due){ const d=new Date(due); const nth=Math.floor((d.getDate()-1)/7)+1; return "毎月第"+nth+WD[d.getDay()]; } return "毎月第◯曜"; }
+    return "";
+  }
   function cacheKey(){ return "oboegaki.cache."+(currentUser?currentUser.id:"anon"); }
   function cacheGet(){ try{ return JSON.parse(localStorage.getItem(cacheKey()))||[]; }catch(e){ return []; } }
   function cacheSet(t){ try{ localStorage.setItem(cacheKey(), JSON.stringify(t)); }catch(e){} }
@@ -347,7 +373,7 @@
     li.innerHTML='<button class="check" aria-label="完了切り替え">'+checkSVG+'</button>'+
       '<div class="body"><div class="title"></div>'+
       (t.due?'<span class="due '+(ds==="overdue"?"is-overdue":ds==="today"?"is-today":"")+'">'+clockSVG+'<span></span></span>':'')+
-      (t.repeat?'<span class="badge-rep">'+repLabel(t.repeat)+'</span>':'')+
+      (t.repeat?'<span class="badge-rep">'+repLabel(t.repeat, t.due)+'</span>':'')+
       '</div><button class="del" aria-label="削除">'+trashSVG+'</button>';
     li.querySelector(".title").textContent=t.title;
     if(t.due) li.querySelector(".due span").textContent=fmtDue(t.due);
