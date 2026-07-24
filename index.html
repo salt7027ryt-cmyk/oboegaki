@@ -85,6 +85,8 @@
   .modal-actions button{border:none;cursor:pointer;font-family:inherit;font-size:13px;padding:8px 16px;border-radius:18px}
   .modal-actions .primary{background:var(--accent-deep);color:#faf9f6}
   .modal-actions .ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
+  .modal-actions .danger{background:var(--danger);color:#fff}
+  .menu-item.danger{color:var(--danger);border-color:#e6cfc8}
 
   header{margin-bottom:22px}
   .brand{display:flex;align-items:baseline;gap:12px}
@@ -465,12 +467,37 @@
 
   function openListMenu(){
     const m=modalOpen("リスト");
+    const cur=lists.find(l=>l.id===currentListId);
+    const isOwner = cur && cur.owner_id===currentUser.id;
     const wrap=document.createElement("div"); wrap.className="menu-list";
-    [["新しいリストを作る",uiCreateList],["コードで参加",uiJoin],["このリストに招待",uiInvite]].forEach(([label,fn])=>{
-      const b=document.createElement("button"); b.className="menu-item"; b.textContent=label; b.onclick=fn; wrap.appendChild(b);
+    const items=[["新しいリストを作る",uiCreateList,false],["コードで参加",uiJoin,false],["このリストに招待",uiInvite,false],
+      [isOwner?"このリストを削除":"このリストから退出", uiDeleteOrLeave, true]];
+    items.forEach(([label,fn,danger])=>{
+      const b=document.createElement("button"); b.className="menu-item"+(danger?" danger":""); b.textContent=label; b.onclick=fn; wrap.appendChild(b);
     });
     m.content.appendChild(wrap);
     addActions(m.actions,[{label:"閉じる",cls:"ghost",on:closeModal}]);
+  }
+  function uiDeleteOrLeave(){
+    const list=lists.find(l=>l.id===currentListId);
+    if(!list){ toast("リストがありません"); return; }
+    const isOwner = list.owner_id===currentUser.id;
+    const m=modalOpen(isOwner?"リストを削除":"リストから退出");
+    m.content.innerHTML = isOwner
+      ? '<p>「'+list.name+'」を削除すると、このリストの中のタスクもすべて消え、共有相手からも見えなくなります。元に戻せません。</p>'
+      : '<p>「'+list.name+'」から退出します。あなたの画面からこの共有リストが消えます（他の人のリストはそのまま残ります）。</p>';
+    addActions(m.actions,[
+      {label:"キャンセル",cls:"ghost",on:closeModal},
+      {label:isOwner?"削除する":"退出する",cls:"danger",on:async()=>{
+        closeModal();
+        let error;
+        if(isOwner){ ({ error } = await client.from("lists").delete().eq("id",currentListId)); }
+        else { ({ error } = await client.from("list_members").delete().eq("list_id",currentListId).eq("user_id",currentUser.id)); }
+        if(error){ toast("できませんでした"); return; }
+        currentListId=null; try{ localStorage.removeItem("oboegaki.list."+currentUser.id); }catch(e){}
+        await fetchLists(); await fetchTasks(); toast(isOwner?"削除しました":"退出しました");
+      }}
+    ]);
   }
   function uiCreateList(){
     const m=modalOpen("新しいリスト");
