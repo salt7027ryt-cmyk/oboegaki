@@ -127,6 +127,12 @@
     letter-spacing:.06em;color:var(--ink-soft);padding:6px 12px;border-radius:16px;transition:.15s}
   .tab.active{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--line)}
   .tab .count{font-size:10.5px;opacity:.7;margin-left:4px}
+  .search{width:100%;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:8px 13px;
+    font-size:13px;font-family:inherit;color:var(--ink);outline:none;margin-bottom:14px}
+  .search::placeholder{color:var(--ink-soft)}
+  .pin{color:var(--today);font-size:12px;margin-right:5px;vertical-align:middle}
+  .body{cursor:pointer}
+  .arch-badge{font-size:10.5px;color:var(--ink-soft);border:1px solid var(--line);border-radius:8px;padding:1px 7px;margin-left:8px}
 
   .group-label{font-size:11px;letter-spacing:.16em;color:var(--ink-soft);margin:22px 4px 8px;
     text-transform:uppercase;display:flex;align-items:center;gap:8px}
@@ -238,6 +244,8 @@
     <button class="tab" data-filter="done">完了<span class="count" id="c-done"></span></button>
   </div>
 
+  <input type="text" id="searchInput" class="search" placeholder="検索（アーカイブも含めて探す）" autocomplete="off">
+
   <div id="listArea"></div>
 </div>
 </div>
@@ -289,7 +297,7 @@
 
   const $ = s => document.querySelector(s);
   let tasks = [], filter = "active", currentUser = null, channel = null, wired = false;
-  let lists = [], currentListId = null;
+  let lists = [], currentListId = null, searchQuery = "";
   const timers = {};
 
   /* ---------- 表示ユーティリティ ---------- */
@@ -312,7 +320,7 @@
   }
 
   /* ---------- データ層（Supabase） ---------- */
-  function fromRow(r){ return { id:r.id, title:r.title, due:r.due, done:r.done, repeat:r.repeat||"", list_id:r.list_id, created:new Date(r.created_at).getTime() }; }
+  function fromRow(r){ return { id:r.id, title:r.title, due:r.due, done:r.done, repeat:r.repeat||"", list_id:r.list_id, pinned:!!r.pinned, archived_at:r.archived_at||null, created:new Date(r.created_at).getTime() }; }
   const WD = ["日","月","火","水","木","金","土"];
   function nextMonthlyNth(d){
     const weekday=d.getDay(), nth=Math.floor((d.getDate()-1)/7)+1;
@@ -538,6 +546,29 @@
     ]);
   }
 
+  /* ---------- タスク詳細（ピン／アーカイブ／削除） ---------- */
+  function openTaskDetail(id){
+    const t=tasks.find(x=>x.id===id); if(!t) return;
+    const m=modalOpen(t.title);
+    let meta="";
+    if(t.due) meta+='<p>期限：'+fmtDue(t.due)+(dueState(t.due)==="overdue"?"（期限切れ）":"")+'</p>';
+    if(t.repeat) meta+='<p>繰り返し：'+repLabel(t.repeat,t.due)+'</p>';
+    if(t.archived_at) meta+='<p style="color:var(--ink-soft)">アーカイブ済み</p>';
+    const wrap=document.createElement("div");
+    if(meta) wrap.innerHTML=meta;
+    const menu=document.createElement("div"); menu.className="menu-list"; menu.style.marginTop=meta?"6px":"0";
+    const items=[
+      [t.done?"未完了に戻す":"完了にする", async()=>{ closeModal(); await toggle(id); }, false],
+      [t.pinned?"ピン留めを外す":"ピン留め", async()=>{ closeModal(); await client.from("tasks").update({pinned:!t.pinned}).eq("id",id); await fetchTasks(); }, false],
+      [t.archived_at?"アーカイブから戻す":"アーカイブする", async()=>{ closeModal(); await client.from("tasks").update({archived_at: t.archived_at?null:new Date().toISOString()}).eq("id",id); await fetchTasks(); toast(t.archived_at?"戻しました":"アーカイブしました"); }, false],
+      ["削除", async()=>{ closeModal(); await remove(id); }, true]
+    ];
+    items.forEach(([label,fn,danger])=>{ const b=document.createElement("button"); b.className="menu-item"+(danger?" danger":""); b.textContent=label; b.onclick=fn; menu.appendChild(b); });
+    wrap.appendChild(menu);
+    m.content.appendChild(wrap);
+    addActions(m.actions,[{label:"閉じる",cls:"ghost",on:closeModal}]);
+  }
+
   function cacheKey(){ return "oboegaki.cache."+(currentUser?currentUser.id:"anon"); }
   function cacheGet(){ try{ return JSON.parse(localStorage.getItem(cacheKey()))||[]; }catch(e){ return []; } }
   function cacheSet(t){ try{ localStorage.setItem(cacheKey(), JSON.stringify(t)); }catch(e){} }
@@ -599,7 +630,7 @@
   function scheduleAll(){}
 
   /* ---------- 描画 ---------- */
-  function counts(){ const ts=tasks.filter(t=>t.list_id===currentListId); return { active:ts.filter(t=>!t.done).length, done:ts.filter(t=>t.done).length, all:ts.length }; }
+  function counts(){ const ts=tasks.filter(t=>t.list_id===currentListId && !t.archived_at); return { active:ts.filter(t=>!t.done).length, done:ts.filter(t=>t.done).length, all:ts.length }; }
   const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
   const clockSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg>';
   const trashSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>';
@@ -608,14 +639,16 @@
     const li=document.createElement("li"); li.className="task"+(t.done?" done":"");
     const ds=dueState(t.due);
     li.innerHTML='<button class="check" aria-label="完了切り替え">'+checkSVG+'</button>'+
-      '<div class="body"><div class="title"></div>'+
+      '<div class="body"><div class="title">'+(t.pinned?'<span class="pin">★</span>':'')+'<span class="titletext"></span>'+
+      (t.archived_at?'<span class="arch-badge">アーカイブ</span>':'')+'</div>'+
       (t.due?'<span class="due '+(ds==="overdue"?"is-overdue":ds==="today"?"is-today":"")+'">'+clockSVG+'<span></span></span>':'')+
       (t.repeat?'<span class="badge-rep">'+repLabel(t.repeat, t.due)+'</span>':'')+
       '</div><button class="del" aria-label="削除">'+trashSVG+'</button>';
-    li.querySelector(".title").textContent=t.title;
+    li.querySelector(".titletext").textContent=t.title;
     if(t.due) li.querySelector(".due span").textContent=fmtDue(t.due);
-    li.querySelector(".check").onclick=()=>toggle(t.id);
-    li.querySelector(".del").onclick=()=>remove(t.id);
+    li.querySelector(".check").onclick=(e)=>{ e.stopPropagation(); toggle(t.id); };
+    li.querySelector(".del").onclick=(e)=>{ e.stopPropagation(); remove(t.id); };
+    li.querySelector(".body").onclick=()=>openTaskDetail(t.id);
     return li;
   }
   function addGroup(area,label,arr,cls){
@@ -627,7 +660,17 @@
     const area=$("#listArea"); area.innerHTML="";
     const c=counts();
     $("#c-active").textContent=c.active||""; $("#c-done").textContent=c.done||""; $("#c-all").textContent=c.all||"";
-    let items=tasks.filter(t=>t.list_id===currentListId);
+
+    // 検索モード（アーカイブも含めて現在のリストから探す）
+    const q=searchQuery.trim().toLowerCase();
+    if(q){
+      const res=tasks.filter(t=>t.list_id===currentListId && t.title.toLowerCase().includes(q))
+        .sort((a,b)=>b.created-a.created);
+      if(res.length===0){ area.innerHTML='<div class="empty"><span class="mark">◦</span>「'+searchQuery+'」に一致するものはありません</div>'; return; }
+      const ul=document.createElement("ul"); ul.className="list"; res.forEach(t=>ul.appendChild(taskEl(t))); area.appendChild(ul); return;
+    }
+
+    let items=tasks.filter(t=>t.list_id===currentListId && !t.archived_at); // アーカイブは通常表示から除外
     if(filter==="active") items=items.filter(t=>!t.done);
     else if(filter==="done") items=items.filter(t=>t.done);
     if(items.length===0){
@@ -637,10 +680,13 @@
     }
     if(filter==="all"||filter==="active"){
       const undone=items.filter(t=>!t.done);
+      const pinned=undone.filter(t=>t.pinned).sort((a,b)=>b.created-a.created);
+      const rest=undone.filter(t=>!t.pinned);
       const grp={overdue:[],today:[],future:[],none:[]};
-      undone.forEach(t=>{ const s=t.due?dueState(t.due):"none"; grp[s==="overdue"?"overdue":s==="today"?"today":s==="future"?"future":"none"].push(t); });
+      rest.forEach(t=>{ const s=t.due?dueState(t.due):"none"; grp[s==="overdue"?"overdue":s==="today"?"today":s==="future"?"future":"none"].push(t); });
       const byDue=(a,b)=>new Date(a.due)-new Date(b.due);
       grp.overdue.sort(byDue); grp.today.sort(byDue); grp.future.sort(byDue); grp.none.sort((a,b)=>b.created-a.created);
+      addGroup(area,"★ 固定",pinned,"today");
       addGroup(area,"期限切れ",grp.overdue,"overdue");
       addGroup(area,"今日",grp.today,"today");
       addGroup(area,"これから",grp.future,"");
@@ -682,6 +728,7 @@
     document.querySelectorAll(".tab").forEach(tab=>{ tab.onclick=()=>{ document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active")); tab.classList.add("active"); filter=tab.dataset.filter; render(); }; });
     $("#permBtn").onclick=()=>{ if(!("Notification" in window)) return; Notification.requestPermission().then(async p=>{ updateNoticeBar(); if(p==="granted"){ const ok=await enablePush(); toast(ok?"通知をオンにしました":"通知の登録に失敗しました"); } }); };
     setupVoice();
+    $("#searchInput").addEventListener("input",()=>{ searchQuery=$("#searchInput").value; render(); });
     $("#modalBack").addEventListener("click",(e)=>{ if(e.target===$("#modalBack")) closeModal(); });
     setInterval(()=>{ render(); }, 60*1000);
     document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ fetchTasks(); } });
