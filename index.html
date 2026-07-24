@@ -15,124 +15,97 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
   :root{
-    --bg:#f4f2ed;          /* 生成りの背景 */
-    --panel:#faf9f6;       /* 紙のような面 */
-    --ink:#3a362f;         /* 墨色の文字 */
-    --ink-soft:#8a8478;    /* 薄墨 */
-    --line:#e3ded4;        /* 罫線 */
-    --line-soft:#ece8e0;
-    --accent:#9b8f7a;      /* 麻・生成りの差し色 */
-    --accent-deep:#6f6553;
-    --danger:#b9705f;      /* くすんだ朱 */
-    --today:#c9a15a;       /* 山吹（今日） */
-    --done:#b7c2a8;        /* くすんだ若葉（完了） */
-    --shadow:0 1px 2px rgba(58,54,47,.04), 0 8px 24px rgba(58,54,47,.05);
-    --radius:14px;
+    --bg:#f4f2ed; --panel:#faf9f6; --ink:#3a362f; --ink-soft:#8a8478;
+    --line:#e3ded4; --line-soft:#ece8e0; --accent:#9b8f7a; --accent-deep:#6f6553;
+    --danger:#b9705f; --today:#c9a15a; --done:#b7c2a8;
+    --shadow:0 1px 2px rgba(58,54,47,.04), 0 8px 24px rgba(58,54,47,.05); --radius:14px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
   body{
     font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Segoe UI",system-ui,sans-serif;
-    background:var(--bg);
-    color:var(--ink);
-    line-height:1.7;
-    -webkit-font-smoothing:antialiased;
-    font-feature-settings:"palt";
+    background:var(--bg);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased;font-feature-settings:"palt";
   }
   .wrap{max-width:640px;margin:0 auto;
-    padding:calc(32px + env(safe-area-inset-top)) 20px calc(120px + env(safe-area-inset-bottom))}
+    padding:calc(28px + env(safe-area-inset-top)) 20px calc(120px + env(safe-area-inset-bottom))}
 
-  /* ヘッダー */
-  header{margin-bottom:26px}
+  /* ---- ログイン画面 ---- */
+  #auth{display:none;min-height:100vh;flex-direction:column;align-items:center;justify-content:center;
+    padding:32px 24px calc(32px + env(safe-area-inset-bottom));text-align:center}
+  #auth .brand{margin-bottom:28px}
+  #auth h1{font-size:26px;font-weight:600;letter-spacing:.14em;margin:0}
+  #auth .en{font-size:11px;letter-spacing:.28em;color:var(--ink-soft);text-transform:uppercase}
+  #auth .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:24px 22px;width:100%;max-width:340px}
+  #auth p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.7}
+  #auth input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;
+    padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;outline:none;margin-bottom:12px;text-align:center}
+  #auth input::placeholder{color:var(--ink-soft)}
+  #auth button{width:100%;border:none;cursor:pointer;background:var(--accent-deep);color:#faf9f6;
+    padding:12px;border-radius:22px;font-size:14px;letter-spacing:.08em;font-family:inherit;transition:.18s}
+  #auth button:hover{background:var(--ink)}
+  #auth button:disabled{opacity:.5;cursor:default}
+  #codeRow{display:none;margin-top:4px}
+  #codeRow input{letter-spacing:.5em;font-size:20px}
+  #authMsg{font-size:12px;color:var(--accent-deep);margin-top:14px;min-height:18px;line-height:1.6}
+
+  /* ---- ユーザーバー ---- */
+  .userbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:8px;font-size:11.5px;color:var(--ink-soft)}
+  .userbar .sync{display:flex;align-items:center;gap:5px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--done)}
+  .dot.off{background:var(--danger)}
+  .userbar button{border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);
+    border-radius:14px;padding:3px 11px;font-size:11px;cursor:pointer;font-family:inherit}
+  .userbar button:hover{border-color:var(--accent)}
+
+  header{margin-bottom:22px}
   .brand{display:flex;align-items:baseline;gap:12px}
-  h1{
-    font-size:19px;font-weight:600;letter-spacing:.14em;margin:0;
-    color:var(--ink);
-  }
+  h1{font-size:19px;font-weight:600;letter-spacing:.14em;margin:0;color:var(--ink)}
   .brand .en{font-size:11px;letter-spacing:.28em;color:var(--ink-soft);text-transform:uppercase}
   .date-line{margin-top:6px;font-size:12.5px;color:var(--ink-soft);letter-spacing:.06em}
 
-  /* 入力カード */
-  .composer{
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    box-shadow:var(--shadow);
-    padding:14px 14px 12px;
-    margin-bottom:22px;
-  }
+  .composer{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:14px 14px 12px;margin-bottom:22px}
   .composer .row{display:flex;align-items:center;gap:10px}
-  .composer input[type=text]{
-    flex:1;border:none;background:transparent;outline:none;
-    font-size:15.5px;color:var(--ink);padding:8px 4px;
-    font-family:inherit;
-  }
+  .composer input[type=text]{flex:1;border:none;background:transparent;outline:none;
+    font-size:15.5px;color:var(--ink);padding:8px 4px;font-family:inherit}
   .composer input::placeholder{color:var(--ink-soft)}
-  .icon-btn{
-    width:40px;height:40px;flex:0 0 auto;border-radius:50%;
-    border:1px solid var(--line);background:var(--panel);
-    display:flex;align-items:center;justify-content:center;cursor:pointer;
-    color:var(--accent-deep);transition:.18s;padding:0;
-  }
+  .icon-btn{width:40px;height:40px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line);
+    background:var(--panel);display:flex;align-items:center;justify-content:center;cursor:pointer;
+    color:var(--accent-deep);transition:.18s;padding:0}
   .icon-btn:hover{background:#f1eee7;border-color:var(--accent)}
   .icon-btn svg{width:19px;height:19px}
   .mic.listening{background:var(--danger);border-color:var(--danger);color:#fff;animation:pulse 1.4s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(185,112,95,.35)}70%{box-shadow:0 0 0 12px rgba(185,112,95,0)}100%{box-shadow:0 0 0 0 rgba(185,112,95,0)}}
-
-  .composer .meta{
-    display:flex;align-items:center;gap:10px;margin-top:10px;
-    padding-top:10px;border-top:1px solid var(--line-soft);
-    flex-wrap:wrap;
-  }
+  .composer .meta{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;
+    border-top:1px solid var(--line-soft);flex-wrap:wrap}
   .field{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft)}
-  .field label{letter-spacing:.04em}
-  .composer input[type=datetime-local]{
-    border:1px solid var(--line);background:var(--bg);border-radius:8px;
-    padding:5px 8px;font-size:12.5px;color:var(--ink);font-family:inherit;outline:none;
-  }
-  .add-btn{
-    margin-left:auto;border:none;cursor:pointer;
-    background:var(--accent-deep);color:#faf9f6;
-    padding:8px 18px;border-radius:20px;font-size:13px;letter-spacing:.08em;
-    font-family:inherit;transition:.18s;
-  }
+  .composer input[type=datetime-local]{border:1px solid var(--line);background:var(--bg);border-radius:8px;
+    padding:5px 8px;font-size:12.5px;color:var(--ink);font-family:inherit;outline:none}
+  .add-btn{margin-left:auto;border:none;cursor:pointer;background:var(--accent-deep);color:#faf9f6;
+    padding:8px 18px;border-radius:20px;font-size:13px;letter-spacing:.08em;font-family:inherit;transition:.18s}
   .add-btn:hover{background:var(--ink)}
   .add-btn:active{transform:translateY(1px)}
-
   .voice-hint{font-size:11.5px;color:var(--ink-soft);margin-top:8px;min-height:16px;letter-spacing:.03em}
 
-  /* フィルタ */
   .tabs{display:flex;gap:4px;margin-bottom:14px}
-  .tab{
-    border:none;background:transparent;cursor:pointer;font-family:inherit;
-    font-size:12.5px;letter-spacing:.06em;color:var(--ink-soft);
-    padding:6px 12px;border-radius:16px;transition:.15s;
-  }
+  .tab{border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:12.5px;
+    letter-spacing:.06em;color:var(--ink-soft);padding:6px 12px;border-radius:16px;transition:.15s}
   .tab.active{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--line)}
   .tab .count{font-size:10.5px;opacity:.7;margin-left:4px}
 
-  /* 一覧 */
-  .group-label{
-    font-size:11px;letter-spacing:.16em;color:var(--ink-soft);
-    margin:22px 4px 8px;text-transform:uppercase;display:flex;align-items:center;gap:8px;
-  }
+  .group-label{font-size:11px;letter-spacing:.16em;color:var(--ink-soft);margin:22px 4px 8px;
+    text-transform:uppercase;display:flex;align-items:center;gap:8px}
   .group-label::after{content:"";flex:1;height:1px;background:var(--line)}
   .group-label.overdue{color:var(--danger)}
   .group-label.today{color:var(--today)}
 
   ul.list{list-style:none;margin:0;padding:0}
-  li.task{
-    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:var(--shadow);padding:14px 16px;margin-bottom:10px;
-    display:flex;align-items:flex-start;gap:13px;transition:.2s;
-    animation:appear .25s ease;
-  }
+  li.task{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:14px 16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:13px;transition:.2s;animation:appear .25s ease}
   @keyframes appear{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-  .check{
-    width:22px;height:22px;flex:0 0 auto;border-radius:50%;margin-top:1px;
-    border:1.6px solid var(--line);cursor:pointer;transition:.18s;
-    display:flex;align-items:center;justify-content:center;background:transparent;padding:0;
-  }
+  .check{width:22px;height:22px;flex:0 0 auto;border-radius:50%;margin-top:1px;border:1.6px solid var(--line);
+    cursor:pointer;transition:.18s;display:flex;align-items:center;justify-content:center;background:transparent;padding:0}
   .check:hover{border-color:var(--accent)}
   .check svg{width:12px;height:12px;opacity:0;transition:.18s;color:#fff}
   .task.done .check{background:var(--done);border-color:var(--done)}
@@ -140,66 +113,66 @@
   .body{flex:1;min-width:0}
   .title{font-size:15px;color:var(--ink);word-break:break-word;line-height:1.55}
   .task.done .title{color:var(--ink-soft);text-decoration:line-through;text-decoration-color:var(--line)}
-  .due{
-    display:inline-flex;align-items:center;gap:5px;margin-top:6px;
-    font-size:11.5px;color:var(--ink-soft);letter-spacing:.04em;
-  }
+  .due{display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-size:11.5px;color:var(--ink-soft);letter-spacing:.04em}
   .due svg{width:12px;height:12px}
   .due.is-overdue{color:var(--danger)}
   .due.is-today{color:var(--today)}
-  .del{
-    border:none;background:transparent;cursor:pointer;color:var(--line-soft);
-    padding:4px;margin:-4px -6px 0 0;transition:.15s;flex:0 0 auto;
-  }
+  .del{border:none;background:transparent;cursor:pointer;color:var(--line-soft);padding:4px;margin:-4px -6px 0 0;transition:.15s;flex:0 0 auto}
   li.task:hover .del{color:var(--ink-soft)}
   .del:hover{color:var(--danger)}
   .del svg{width:15px;height:15px;display:block}
 
-  .empty{
-    text-align:center;color:var(--ink-soft);padding:56px 20px;font-size:13.5px;letter-spacing:.04em;
-  }
+  .empty{text-align:center;color:var(--ink-soft);padding:56px 20px;font-size:13.5px;letter-spacing:.04em}
   .empty .mark{font-size:26px;display:block;margin-bottom:10px;opacity:.5}
+  .loading{text-align:center;color:var(--ink-soft);padding:48px 20px;font-size:13px}
 
-  /* フッター通知許可 */
-  .notice{
-    position:fixed;left:0;right:0;bottom:0;background:var(--panel);
-    border-top:1px solid var(--line);padding:12px 20px;
-    display:flex;align-items:center;gap:12px;justify-content:center;
-    font-size:12.5px;color:var(--ink-soft);
-  }
-  .notice button{
-    border:1px solid var(--accent);background:transparent;color:var(--accent-deep);
-    padding:5px 14px;border-radius:16px;font-size:12px;cursor:pointer;font-family:inherit;
-  }
+  .notice{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);
+    padding:12px 20px;display:flex;align-items:center;gap:12px;justify-content:center;font-size:12.5px;color:var(--ink-soft)}
+  .notice button{border:1px solid var(--accent);background:transparent;color:var(--accent-deep);
+    padding:5px 14px;border-radius:16px;font-size:12px;cursor:pointer;font-family:inherit}
   .notice button:hover{background:var(--accent);color:#fff}
   .notice.hide{display:none}
 
-  .toast{
-    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
-    background:var(--ink);color:#faf9f6;padding:10px 20px;border-radius:22px;
-    font-size:13px;letter-spacing:.04em;opacity:0;transition:.28s;pointer-events:none;z-index:50;
-    box-shadow:0 8px 24px rgba(58,54,47,.2);
-  }
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);
+    color:#faf9f6;padding:10px 20px;border-radius:22px;font-size:13px;letter-spacing:.04em;opacity:0;transition:.28s;
+    pointer-events:none;z-index:50;box-shadow:0 8px 24px rgba(58,54,47,.2)}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-  @media (max-width:480px){
-    .wrap{padding:24px 14px 120px}
-    .composer .meta{gap:8px}
-    .add-btn{padding:8px 14px}
-  }
+  @media (max-width:480px){.wrap{padding-left:14px;padding-right:14px}.composer .meta{gap:8px}.add-btn{padding:8px 14px}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="brand">
-      <h1>おぼえがき</h1>
-      <span class="en">memo &amp; tasks</span>
+
+<!-- ログイン画面 -->
+<div id="auth">
+  <div class="brand">
+    <h1>おぼえがき</h1>
+    <div class="en">memo &amp; tasks</div>
+  </div>
+  <div class="card">
+    <p class="desc">メールアドレスを入れると確認コードが届きます。<br>コードを入力するとログインでき、どの端末でも同じタスクが見られます。</p>
+    <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" inputmode="email">
+    <button id="sendBtn">コードを送る</button>
+    <div id="codeRow">
+      <input type="text" id="codeInput" placeholder="６桁コード" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+      <button id="verifyBtn">ログイン</button>
     </div>
+    <div id="authMsg"></div>
+  </div>
+</div>
+
+<!-- アプリ本体 -->
+<div id="app" style="display:none">
+<div class="wrap">
+  <div class="userbar">
+    <span class="sync"><span class="dot" id="syncDot"></span><span id="userEmail"></span></span>
+    <button id="logoutBtn">ログアウト</button>
+  </div>
+  <header>
+    <div class="brand"><h1>おぼえがき</h1><span class="en">memo &amp; tasks</span></div>
     <div class="date-line" id="dateLine"></div>
   </header>
 
-  <!-- 入力 -->
   <section class="composer">
     <div class="row">
       <input type="text" id="titleInput" placeholder="やること、思いついたことを書く…" autocomplete="off">
@@ -208,315 +181,256 @@
       </button>
     </div>
     <div class="meta">
-      <div class="field">
-        <label for="dueInput">リマインド</label>
-        <input type="datetime-local" id="dueInput">
-      </div>
+      <div class="field"><label for="dueInput">リマインド</label><input type="datetime-local" id="dueInput"></div>
       <button class="add-btn" id="addBtn">追加</button>
     </div>
     <div class="voice-hint" id="voiceHint"></div>
   </section>
 
-  <!-- フィルタ -->
   <div class="tabs" id="tabs">
     <button class="tab active" data-filter="active">未完了<span class="count" id="c-active"></span></button>
     <button class="tab" data-filter="all">すべて<span class="count" id="c-all"></span></button>
     <button class="tab" data-filter="done">完了<span class="count" id="c-done"></span></button>
   </div>
 
-  <!-- リスト -->
   <div id="listArea"></div>
+</div>
 </div>
 
 <div class="notice hide" id="notice">
   <span>リマインドを受け取るには通知を許可してください</span>
   <button id="permBtn">許可する</button>
 </div>
-
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   "use strict";
-  const STORE_KEY = "oboegaki.tasks.v1";
-  let tasks = [];
-  let filter = "active";
+  const SB_URL = "https://hyfuexqtzanxisahhvop.supabase.co";
+  const SB_KEY = "sb_publishable_EGLBARs8c1YQ-WpF-MCJ1w_dpkoSin_";
+  const client = supabase.createClient(SB_URL, SB_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
+
+  const $ = s => document.querySelector(s);
+  let tasks = [], filter = "active", currentUser = null, channel = null, wired = false;
   const timers = {};
 
-  /* ---------- 保存・読み込み ---------- */
-  function load(){
-    try{ tasks = JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
-    catch(e){ tasks = []; }
-  }
-  function save(){
-    try{ localStorage.setItem(STORE_KEY, JSON.stringify(tasks)); }catch(e){}
-  }
-
-  /* ---------- ユーティリティ ---------- */
-  const $ = s => document.querySelector(s);
-  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
-
+  /* ---------- 表示ユーティリティ ---------- */
   function fmtDue(iso){
-    const d = new Date(iso), now = new Date();
-    const sameDay = d.toDateString() === now.toDateString();
-    const tomorrow = new Date(now); tomorrow.setDate(now.getDate()+1);
-    const isTomorrow = d.toDateString() === tomorrow.toDateString();
-    const time = d.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"});
-    if(sameDay) return "今日 " + time;
-    if(isTomorrow) return "明日 " + time;
-    return d.toLocaleDateString("ja-JP",{month:"long",day:"numeric",weekday:"short"}) + " " + time;
+    const d=new Date(iso), now=new Date();
+    const sameDay=d.toDateString()===now.toDateString();
+    const tm=new Date(now); tm.setDate(now.getDate()+1);
+    const isTom=d.toDateString()===tm.toDateString();
+    const time=d.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"});
+    if(sameDay) return "今日 "+time;
+    if(isTom) return "明日 "+time;
+    return d.toLocaleDateString("ja-JP",{month:"long",day:"numeric",weekday:"short"})+" "+time;
   }
   function dueState(iso){
     if(!iso) return "";
-    const d = new Date(iso), now = new Date();
-    if(d < now) return "overdue";
-    if(d.toDateString() === now.toDateString()) return "today";
+    const d=new Date(iso), now=new Date();
+    if(d<now) return "overdue";
+    if(d.toDateString()===now.toDateString()) return "today";
     return "future";
   }
 
-  /* ---------- 音声入力から日時を推測（簡易） ---------- */
-  // ※ タブで「話した言葉をそのままタスク化」を選択済みのため、本文はそのまま。
-  //    余力として簡易的な時刻抽出も行い、拾えた場合のみ期限に反映。
+  /* ---------- データ層（Supabase） ---------- */
+  function fromRow(r){ return { id:r.id, title:r.title, due:r.due, done:r.done, notified:r.notified, created:new Date(r.created_at).getTime() }; }
+  function cacheKey(){ return "oboegaki.cache."+(currentUser?currentUser.id:"anon"); }
+  function cacheGet(){ try{ return JSON.parse(localStorage.getItem(cacheKey()))||[]; }catch(e){ return []; } }
+  function cacheSet(t){ try{ localStorage.setItem(cacheKey(), JSON.stringify(t)); }catch(e){} }
 
-  /* ---------- 通知 ---------- */
+  async function fetchTasks(){
+    const { data, error } = await client.from("tasks").select("*").order("created_at",{ascending:true});
+    if(error){ setSync(false); const c=cacheGet(); if(c.length){ tasks=c; render(); } return; }
+    setSync(true);
+    tasks = data.map(fromRow); cacheSet(tasks);
+    render(); scheduleAll();
+  }
+  async function addTask(){
+    const input=$("#titleInput"); const title=input.value.trim();
+    if(!title){ input.focus(); return; }
+    const dueVal=$("#dueInput").value;
+    const row={ title, due: dueVal? new Date(dueVal).toISOString():null, done:false, notified:false };
+    const { error } = await client.from("tasks").insert(row);
+    if(error){ toast("保存に失敗しました"); return; }
+    input.value=""; $("#dueInput").value=""; $("#voiceHint").textContent=""; input.focus();
+    await fetchTasks(); toast("追加しました");
+  }
+  async function toggle(id){
+    const t=tasks.find(x=>x.id===id); if(!t) return;
+    const nd=!t.done;
+    await client.from("tasks").update({ done:nd, notified: nd? true : t.notified }).eq("id",id);
+    await fetchTasks();
+  }
+  async function remove(id){
+    await client.from("tasks").delete().eq("id",id);
+    if(timers[id]){ clearTimeout(timers[id]); delete timers[id]; }
+    await fetchTasks(); toast("削除しました");
+  }
+
+  function subscribe(){
+    if(channel){ client.removeChannel(channel); channel=null; }
+    channel = client.channel("tasks-sync")
+      .on("postgres_changes", { event:"*", schema:"public", table:"tasks" }, ()=>{ fetchTasks(); })
+      .subscribe();
+  }
+  function setSync(ok){ const d=$("#syncDot"); if(d) d.className = "dot"+(ok?"":" off"); }
+
+  /* ---------- 通知（端末内・アプリ起動中） ※STEP3でサーバー配信に置換 ---------- */
   function updateNoticeBar(){
-    const bar = $("#notice");
-    if(!("Notification" in window)){ bar.classList.add("hide"); return; }
-    const hasFuture = tasks.some(t => !t.done && t.due && new Date(t.due) > new Date());
-    if(Notification.permission === "default" && hasFuture) bar.classList.remove("hide");
-    else bar.classList.add("hide");
+    const bar=$("#notice"); if(!("Notification" in window)){ bar.classList.add("hide"); return; }
+    const hasFuture = tasks.some(t=>!t.done && t.due && new Date(t.due)>new Date());
+    if(Notification.permission==="default" && hasFuture) bar.classList.remove("hide"); else bar.classList.add("hide");
   }
   function scheduleAll(){
-    Object.values(timers).forEach(clearTimeout);
-    for(const k in timers) delete timers[k];
-    if(!("Notification" in window) || Notification.permission !== "granted") return;
-    const now = Date.now();
+    Object.values(timers).forEach(clearTimeout); for(const k in timers) delete timers[k];
+    if(!("Notification" in window) || Notification.permission!=="granted") return;
+    const now=Date.now();
     tasks.forEach(t=>{
-      if(t.done || !t.due || t.notified) return;
-      const ms = new Date(t.due).getTime() - now;
-      if(ms <= 0){ fire(t); return; }
-      if(ms < 1000*60*60*24){ // 24時間以内のものだけタイマー登録
-        timers[t.id] = setTimeout(()=>fire(t), ms);
-      }
+      if(t.done||!t.due||t.notified) return;
+      const ms=new Date(t.due).getTime()-now;
+      if(ms<=0){ fire(t); return; }
+      if(ms<86400000) timers[t.id]=setTimeout(()=>fire(t), ms);
     });
   }
-  function fire(t){
-    try{
-      new Notification("おぼえがき", { body: t.title, tag: t.id });
-    }catch(e){}
-    t.notified = true; save();
+  async function fire(t){
+    try{ new Notification("おぼえがき",{ body:t.title, tag:t.id }); }catch(e){}
+    await client.from("tasks").update({ notified:true }).eq("id",t.id).then(()=>{},()=>{});
   }
 
   /* ---------- 描画 ---------- */
-  function counts(){
-    return {
-      active: tasks.filter(t=>!t.done).length,
-      done: tasks.filter(t=>t.done).length,
-      all: tasks.length
-    };
-  }
-
-  const checkSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  const clockSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg>';
-  const trashSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>';
+  function counts(){ return { active:tasks.filter(t=>!t.done).length, done:tasks.filter(t=>t.done).length, all:tasks.length }; }
+  const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  const clockSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg>';
+  const trashSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7"/></svg>';
 
   function taskEl(t){
-    const li = document.createElement("li");
-    li.className = "task" + (t.done ? " done" : "");
-    const ds = dueState(t.due);
-    li.innerHTML =
-      '<button class="check" aria-label="完了切り替え">'+checkSVG+'</button>'+
-      '<div class="body">'+
-        '<div class="title"></div>'+
-        (t.due ? '<span class="due '+(ds==="overdue"?"is-overdue":ds==="today"?"is-today":"")+'">'+clockSVG+'<span></span></span>' : '')+
-      '</div>'+
-      '<button class="del" aria-label="削除">'+trashSVG+'</button>';
-    li.querySelector(".title").textContent = t.title;
-    if(t.due) li.querySelector(".due span").textContent = fmtDue(t.due);
-    li.querySelector(".check").onclick = ()=>toggle(t.id);
-    li.querySelector(".del").onclick = ()=>remove(t.id);
+    const li=document.createElement("li"); li.className="task"+(t.done?" done":"");
+    const ds=dueState(t.due);
+    li.innerHTML='<button class="check" aria-label="完了切り替え">'+checkSVG+'</button>'+
+      '<div class="body"><div class="title"></div>'+
+      (t.due?'<span class="due '+(ds==="overdue"?"is-overdue":ds==="today"?"is-today":"")+'">'+clockSVG+'<span></span></span>':'')+
+      '</div><button class="del" aria-label="削除">'+trashSVG+'</button>';
+    li.querySelector(".title").textContent=t.title;
+    if(t.due) li.querySelector(".due span").textContent=fmtDue(t.due);
+    li.querySelector(".check").onclick=()=>toggle(t.id);
+    li.querySelector(".del").onclick=()=>remove(t.id);
     return li;
   }
-
+  function addGroup(area,label,arr,cls){
+    if(!arr.length) return;
+    const h=document.createElement("div"); h.className="group-label "+cls; h.textContent=label; area.appendChild(h);
+    const ul=document.createElement("ul"); ul.className="list"; arr.forEach(t=>ul.appendChild(taskEl(t))); area.appendChild(ul);
+  }
   function render(){
-    const area = $("#listArea");
-    area.innerHTML = "";
-    const c = counts();
-    $("#c-active").textContent = c.active ? c.active : "";
-    $("#c-done").textContent = c.done ? c.done : "";
-    $("#c-all").textContent = c.all ? c.all : "";
-
-    let items = tasks.slice();
-    if(filter==="active") items = items.filter(t=>!t.done);
-    else if(filter==="done") items = items.filter(t=>t.done);
-
+    const area=$("#listArea"); area.innerHTML="";
+    const c=counts();
+    $("#c-active").textContent=c.active||""; $("#c-done").textContent=c.done||""; $("#c-all").textContent=c.all||"";
+    let items=tasks.slice();
+    if(filter==="active") items=items.filter(t=>!t.done);
+    else if(filter==="done") items=items.filter(t=>t.done);
     if(items.length===0){
-      area.innerHTML = '<div class="empty"><span class="mark">◦</span>'+
-        (filter==="done" ? "完了したものはまだありません" :
-         filter==="active" ? "やることはありません。ひと息どうぞ。" :
-         "最初のひとつを書いてみましょう")+'</div>';
-      return;
+      area.innerHTML='<div class="empty"><span class="mark">◦</span>'+
+        (filter==="done"?"完了したものはまだありません":filter==="active"?"やることはありません。ひと息どうぞ。":"最初のひとつを書いてみましょう")+'</div>';
+      updateNoticeBar(); return;
     }
-
-    // 未完了はグループ化、完了は下にまとめる
-    if(filter==="all" || filter==="active"){
-      const undone = items.filter(t=>!t.done);
-      const grp = {overdue:[],today:[],future:[],none:[]};
-      undone.forEach(t=>{
-        const s = t.due ? dueState(t.due) : "none";
-        grp[s==="overdue"?"overdue":s==="today"?"today":s==="future"?"future":"none"].push(t);
-      });
-      const sortByDue=(a,b)=>new Date(a.due)-new Date(b.due);
-      grp.overdue.sort(sortByDue); grp.today.sort(sortByDue); grp.future.sort(sortByDue);
-      grp.none.sort((a,b)=>b.created-a.created);
+    if(filter==="all"||filter==="active"){
+      const undone=items.filter(t=>!t.done);
+      const grp={overdue:[],today:[],future:[],none:[]};
+      undone.forEach(t=>{ const s=t.due?dueState(t.due):"none"; grp[s==="overdue"?"overdue":s==="today"?"today":s==="future"?"future":"none"].push(t); });
+      const byDue=(a,b)=>new Date(a.due)-new Date(b.due);
+      grp.overdue.sort(byDue); grp.today.sort(byDue); grp.future.sort(byDue); grp.none.sort((a,b)=>b.created-a.created);
       addGroup(area,"期限切れ",grp.overdue,"overdue");
       addGroup(area,"今日",grp.today,"today");
       addGroup(area,"これから",grp.future,"");
       addGroup(area,"期限なし",grp.none,"");
-      if(filter==="all"){
-        const done = items.filter(t=>t.done).sort((a,b)=>b.created-a.created);
-        addGroup(area,"完了",done,"");
-      }
+      if(filter==="all"){ const done=items.filter(t=>t.done).sort((a,b)=>b.created-a.created); addGroup(area,"完了",done,""); }
     } else {
-      const ul = document.createElement("ul"); ul.className="list";
-      items.sort((a,b)=>b.created-a.created).forEach(t=>ul.appendChild(taskEl(t)));
-      area.appendChild(ul);
+      const ul=document.createElement("ul"); ul.className="list";
+      items.sort((a,b)=>b.created-a.created).forEach(t=>ul.appendChild(taskEl(t))); area.appendChild(ul);
     }
     updateNoticeBar();
-  }
-  function addGroup(area,label,arr,cls){
-    if(!arr.length) return;
-    const h = document.createElement("div");
-    h.className = "group-label "+cls; h.textContent = label;
-    area.appendChild(h);
-    const ul = document.createElement("ul"); ul.className="list";
-    arr.forEach(t=>ul.appendChild(taskEl(t)));
-    area.appendChild(ul);
-  }
-
-  /* ---------- 操作 ---------- */
-  function add(){
-    const input = $("#titleInput");
-    const title = input.value.trim();
-    if(!title){ input.focus(); return; }
-    const dueVal = $("#dueInput").value;
-    tasks.push({
-      id: uid(), title, done:false,
-      due: dueVal ? new Date(dueVal).toISOString() : null,
-      notified:false, created: Date.now()
-    });
-    save();
-    input.value=""; $("#dueInput").value=""; $("#voiceHint").textContent="";
-    input.focus();
-    render(); scheduleAll();
-    toast("追加しました");
-  }
-  function toggle(id){
-    const t = tasks.find(x=>x.id===id); if(!t) return;
-    t.done = !t.done; if(t.done) t.notified = true;
-    save(); render(); scheduleAll();
-  }
-  function remove(id){
-    tasks = tasks.filter(x=>x.id!==id);
-    if(timers[id]){ clearTimeout(timers[id]); delete timers[id]; }
-    save(); render();
-    toast("削除しました");
   }
 
   let toastTimer;
-  function toast(msg){
-    const el = $("#toast"); el.textContent = msg; el.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>el.classList.remove("show"), 1600);
-  }
+  function toast(msg){ const el=$("#toast"); el.textContent=msg; el.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove("show"),1600); }
 
   /* ---------- 音声入力 ---------- */
   function setupVoice(){
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const micBtn = $("#micBtn");
-    const hint = $("#voiceHint");
-    if(!SR){
-      micBtn.style.display = "none";
-      return;
-    }
-    const rec = new SR();
-    rec.lang = "ja-JP";
-    rec.interimResults = true;
-    rec.continuous = false;
-    let listening = false;
-
-    micBtn.onclick = ()=>{
-      if(listening){ rec.stop(); return; }
-      try{ rec.start(); }catch(e){}
-    };
-    rec.onstart = ()=>{
-      listening = true; micBtn.classList.add("listening");
-      hint.textContent = "聞いています… 話しかけてください";
-    };
-    rec.onresult = (e)=>{
-      let txt = "";
-      for(let i=0;i<e.results.length;i++) txt += e.results[i][0].transcript;
-      $("#titleInput").value = txt;
-      hint.textContent = "「"+txt+"」";
-    };
-    rec.onerror = (e)=>{
-      hint.textContent = e.error==="not-allowed"
-        ? "マイクの使用が許可されていません" : "うまく聞き取れませんでした";
-    };
-    rec.onend = ()=>{
-      listening = false; micBtn.classList.remove("listening");
-      const v = $("#titleInput").value.trim();
-      if(v){ hint.textContent = "「追加」で登録できます"; }
-      else hint.textContent = "";
-    };
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const micBtn=$("#micBtn"), hint=$("#voiceHint");
+    if(!SR){ micBtn.style.display="none"; return; }
+    const rec=new SR(); rec.lang="ja-JP"; rec.interimResults=true; rec.continuous=false; let listening=false;
+    micBtn.onclick=()=>{ if(listening){ rec.stop(); return; } try{ rec.start(); }catch(e){} };
+    rec.onstart=()=>{ listening=true; micBtn.classList.add("listening"); hint.textContent="聞いています… 話しかけてください"; };
+    rec.onresult=(e)=>{ let txt=""; for(let i=0;i<e.results.length;i++) txt+=e.results[i][0].transcript; $("#titleInput").value=txt; hint.textContent="「"+txt+"」"; };
+    rec.onerror=(e)=>{ hint.textContent=e.error==="not-allowed"?"マイクの使用が許可されていません":"うまく聞き取れませんでした"; };
+    rec.onend=()=>{ listening=false; micBtn.classList.remove("listening"); const v=$("#titleInput").value.trim(); hint.textContent=v?"「追加」で登録できます":""; };
   }
 
-  /* ---------- 初期化 ---------- */
-  function init(){
-    load();
-    // 日付表示
-    $("#dateLine").textContent = new Date().toLocaleDateString("ja-JP",
-      {year:"numeric",month:"long",day:"numeric",weekday:"long"});
-
-    $("#addBtn").onclick = add;
-    $("#titleInput").addEventListener("keydown", e=>{ if(e.key==="Enter") add(); });
-
-    document.querySelectorAll(".tab").forEach(tab=>{
-      tab.onclick = ()=>{
-        document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-        tab.classList.add("active");
-        filter = tab.dataset.filter;
-        render();
-      };
-    });
-
-    $("#permBtn").onclick = ()=>{
-      if(!("Notification" in window)) return;
-      Notification.requestPermission().then(p=>{
-        updateNoticeBar();
-        if(p==="granted"){ scheduleAll(); toast("通知を許可しました"); }
-      });
-    };
-
+  /* ---------- アプリ配線（1回だけ） ---------- */
+  function wireApp(){
+    if(wired) return; wired=true;
+    $("#dateLine").textContent=new Date().toLocaleDateString("ja-JP",{year:"numeric",month:"long",day:"numeric",weekday:"long"});
+    $("#addBtn").onclick=addTask;
+    $("#titleInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addTask(); });
+    document.querySelectorAll(".tab").forEach(tab=>{ tab.onclick=()=>{ document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active")); tab.classList.add("active"); filter=tab.dataset.filter; render(); }; });
+    $("#permBtn").onclick=()=>{ if(!("Notification" in window)) return; Notification.requestPermission().then(p=>{ updateNoticeBar(); if(p==="granted"){ scheduleAll(); toast("通知を許可しました"); } }); };
     setupVoice();
-    render();
-    scheduleAll();
-    updateNoticeBar();
-
-    // 期限切れ表示を更新するため1分ごとに再描画
     setInterval(()=>{ render(); scheduleAll(); }, 60*1000);
-    // タブに戻ったとき見逃した通知を発火
-    document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) scheduleAll(); });
+    document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ fetchTasks(); } });
   }
 
-  init();
+  /* ---------- ログイン画面 ---------- */
+  let pendingEmail="";
+  function wireAuth(){
+    const emailInput=$("#emailInput"), sendBtn=$("#sendBtn"), codeInput=$("#codeInput"), verifyBtn=$("#verifyBtn"), msg=$("#authMsg");
+    sendBtn.onclick=async ()=>{
+      const email=emailInput.value.trim();
+      if(!email||!/.+@.+\..+/.test(email)){ msg.textContent="メールアドレスを確認してください。"; return; }
+      sendBtn.disabled=true; msg.textContent="送信中…";
+      const { error }=await client.auth.signInWithOtp({ email, options:{ shouldCreateUser:true } });
+      sendBtn.disabled=false;
+      if(error){ msg.textContent="送信に失敗しました："+error.message; return; }
+      pendingEmail=email; $("#codeRow").style.display="block"; codeInput.focus();
+      msg.textContent=email+" に確認コードを送りました。メールの6桁を入力してください。";
+    };
+    verifyBtn.onclick=async ()=>{
+      const token=codeInput.value.trim();
+      if(!token){ return; }
+      verifyBtn.disabled=true; msg.textContent="確認中…";
+      const { error }=await client.auth.verifyOtp({ email:pendingEmail, token, type:"email" });
+      verifyBtn.disabled=false;
+      if(error){ msg.textContent="コードが違うようです。もう一度入力してください。"; return; }
+      msg.textContent="";
+    };
+    codeInput.addEventListener("keydown",e=>{ if(e.key==="Enter") verifyBtn.click(); });
+    emailInput.addEventListener("keydown",e=>{ if(e.key==="Enter") sendBtn.click(); });
+  }
+
+  function showAuth(){ currentUser=null; if(channel){ client.removeChannel(channel); channel=null; } $("#auth").style.display="flex"; $("#app").style.display="none"; }
+  function showApp(user){
+    currentUser=user; $("#auth").style.display="none"; $("#app").style.display="block";
+    $("#userEmail").textContent=user.email||"";
+    wireApp();
+    const c=cacheGet(); if(c.length){ tasks=c; render(); }
+    fetchTasks(); subscribe();
+  }
+
+  async function boot(){
+    wireAuth();
+    $("#logoutBtn").onclick=async ()=>{ await client.auth.signOut(); };
+    const { data:{ session } }=await client.auth.getSession();
+    if(session&&session.user) showApp(session.user); else showAuth();
+    client.auth.onAuthStateChange((_e,s)=>{ if(s&&s.user){ if(!currentUser||currentUser.id!==s.user.id) showApp(s.user); } else showAuth(); });
+  }
+  boot();
 })();
 
-/* Service Worker 登録（オフライン起動・インストール対応） */
+/* Service Worker 登録 */
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  });
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
 }
 </script>
 </body>

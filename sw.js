@@ -1,5 +1,5 @@
 /* おぼえがき Service Worker — オフライン起動用の最小キャッシュ */
-const CACHE = "oboegaki-v1";
+const CACHE = "oboegaki-v2";
 const ASSETS = [
   "./",
   "./index.html",
