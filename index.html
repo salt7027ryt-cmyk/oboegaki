@@ -479,6 +479,7 @@
     const isOwner = cur && cur.owner_id===currentUser.id;
     const wrap=document.createElement("div"); wrap.className="menu-list";
     const items=[["新しいリストを作る",uiCreateList,false],["コードで参加",uiJoin,false],["このリストに招待",uiInvite,false],
+      ["クイック追加の設定（ショートカット）",uiQuickCapture,false],
       [isOwner?"このリストを削除":"このリストから退出", uiDeleteOrLeave, true]];
     items.forEach(([label,fn,danger])=>{
       const b=document.createElement("button"); b.className="menu-item"+(danger?" danger":""); b.textContent=label; b.onclick=fn; wrap.appendChild(b);
@@ -534,6 +535,30 @@
       }}
     ]);
     setTimeout(()=>{ const el=$("#joinCode"); if(el) el.focus(); }, 60);
+  }
+  async function uiQuickCapture(){
+    let token;
+    const { data } = await client.from("capture_tokens").select("token").eq("list_id", currentListId).limit(1);
+    if(data && data.length) token=data[0].token;
+    else {
+      token = (window.crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now()+""+Math.random())).replace(/-/g,"");
+      const { error } = await client.from("capture_tokens").insert({ token, list_id: currentListId });
+      if(error){ toast("設定に失敗しました"); return; }
+    }
+    const url = SB_URL + "/functions/v1/capture";
+    const list = lists.find(l=>l.id===currentListId);
+    const m=modalOpen("クイック追加の設定");
+    m.content.innerHTML =
+      '<p>iPhoneのショートカットから、開かずに「'+(list?list.name:"")+'」へ追加できます。下の2つをショートカット設定で使います（手順はチャットでご案内します）。</p>'+
+      '<div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">送信先URL</div>'+
+      '<div class="code" style="font-size:11.5px;letter-spacing:0;word-break:break-all">'+url+'</div>'+
+      '<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 3px">合言葉（token）</div>'+
+      '<div class="code" style="font-size:13px;letter-spacing:.03em;word-break:break-all">'+token+'</div>';
+    addActions(m.actions,[
+      {label:"閉じる",cls:"ghost",on:closeModal},
+      {label:"URLをコピー",cls:"ghost",on:async()=>{ try{ await navigator.clipboard.writeText(url); }catch(e){} toast("URLをコピー"); }},
+      {label:"合言葉をコピー",cls:"primary",on:async()=>{ try{ await navigator.clipboard.writeText(token); }catch(e){} toast("合言葉をコピー"); }}
+    ]);
   }
   function uiInvite(){
     const list=lists.find(l=>l.id===currentListId);
