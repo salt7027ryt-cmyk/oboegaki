@@ -742,10 +742,10 @@
     try{
       const { data, error } = await client.functions.invoke("analyze-journal", { body:{ entries } });
       const el=$("#aiOut"); if(!el) return;
-      if(error){ el.textContent="うまく分析できませんでした。少し時間をおいて試してください。"; return; }
+      if(error){ el.textContent="呼び出しエラー：\n"+(error.message||JSON.stringify(error)); return; }
       if(data && data.error==="no_key"){ el.textContent="AIキーが設定されていません（GEMINI_API_KEY）。"; return; }
       if(data && data.error==="few"){ el.textContent="もう少し日記を書きためてから試してみてください。"; return; }
-      if(!data || data.error || !data.text){ el.textContent="うまく分析できませんでした。少し時間をおいて試してください。"; return; }
+      if(!data || data.error || !data.text){ el.textContent="分析できませんでした（診断用の詳細）：\n"+JSON.stringify(data, null, 2); return; }
       el.textContent=data.text;
     }catch(e){ const el=$("#aiOut"); if(el) el.textContent="通信に失敗しました。少し時間をおいて試してください。"; }
   }
