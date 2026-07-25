@@ -100,6 +100,27 @@
   .crow input{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;color:var(--ink);outline:none;margin:0}
   .crow button{border:none;background:var(--accent-deep);color:#faf9f6;border-radius:16px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:inherit;flex:0 0 auto}
 
+  /* 上部ナビ（タスク/日記） */
+  .topnav{display:flex;gap:4px;margin-bottom:16px}
+  .tn{border:1px solid transparent;background:transparent;color:var(--ink-soft);font-family:inherit;font-size:13px;letter-spacing:.06em;padding:6px 15px;border-radius:16px;cursor:pointer;transition:.15s}
+  .tn.active{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);border-color:var(--line)}
+
+  /* 日記 */
+  .j-head{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .j-head button{border:none;background:transparent;color:var(--accent-deep);font-size:19px;cursor:pointer;padding:2px 10px;line-height:1;font-family:inherit}
+  .j-head .d{font-size:14px;letter-spacing:.04em;min-width:150px;text-align:center;color:var(--ink)}
+  .j-head .j-today{font-size:11px;border:1px solid var(--line);border-radius:14px;padding:4px 11px;color:var(--ink-soft)}
+  .j-body{width:100%;min-height:210px;border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:14px;
+    font-size:14.5px;line-height:1.85;font-family:inherit;color:var(--ink);outline:none;resize:vertical;box-shadow:var(--shadow)}
+  .j-body::placeholder{color:var(--ink-soft)}
+  .j-saverow{display:flex;justify-content:flex-end;margin-top:10px}
+  .j-save{border:none;background:var(--accent-deep);color:#faf9f6;border-radius:20px;padding:9px 22px;font-size:13px;letter-spacing:.08em;cursor:pointer;font-family:inherit}
+  .j-recent{margin-top:28px}
+  .j-recent .lbl{font-size:11px;letter-spacing:.14em;color:var(--ink-soft);margin:0 2px 8px}
+  .j-entry{width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:11px 14px;margin-bottom:8px;cursor:pointer;font-family:inherit;box-shadow:var(--shadow)}
+  .j-entry .ed{font-size:11.5px;color:var(--accent-deep);margin-bottom:3px}
+  .j-entry .es{font-size:12.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
   header{margin-bottom:22px}
   .brand{display:flex;align-items:baseline;gap:12px}
   h1{font-size:19px;font-weight:600;letter-spacing:.14em;margin:0;color:var(--ink)}
@@ -243,6 +264,12 @@
     <div class="date-line" id="dateLine"></div>
   </header>
 
+  <div class="topnav" id="topNav">
+    <button class="tn active" data-mode="tasks">タスク</button>
+    <button class="tn" data-mode="journal">日記</button>
+  </div>
+
+  <div id="taskArea">
   <div class="listbar" id="listBar"></div>
 
   <section class="composer">
@@ -284,6 +311,9 @@
   <input type="text" id="searchInput" class="search" placeholder="検索（アーカイブも含めて探す）" autocomplete="off">
 
   <div id="listArea"></div>
+  </div><!-- /taskArea -->
+
+  <div id="journal" style="display:none"></div>
 </div>
 </div>
 
@@ -335,6 +365,7 @@
   const $ = s => document.querySelector(s);
   let tasks = [], filter = "active", currentUser = null, channel = null, wired = false;
   let lists = [], currentListId = null, searchQuery = "", viewMode = "list";
+  let appMode = "tasks", journalDate = null, journalEntries = [];
   const calView = { y:null, m:null, sel:null };
   const timers = {};
 
@@ -609,6 +640,56 @@
     ]);
   }
 
+  /* ---------- 日記 ---------- */
+  function ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function parseYmd(s){ const a=s.split("-").map(Number); return new Date(a[0],a[1]-1,a[2]); }
+  const WDN=["日","月","火","水","木","金","土"];
+  function entryFor(ds){ return journalEntries.find(e=>e.entry_date===ds); }
+  async function fetchJournal(){ const { data }=await client.from("journal_entries").select("*").eq("user_id",currentUser.id).order("entry_date",{ascending:false}); journalEntries=data||[]; }
+  async function persistJournal(silent){
+    const ta=$("#jBody"); if(!ta) return;
+    const body=ta.value, ds=ymd(journalDate);
+    if(body.trim()===""){ await client.from("journal_entries").delete().eq("user_id",currentUser.id).eq("entry_date",ds); }
+    else { await client.from("journal_entries").upsert({ user_id:currentUser.id, entry_date:ds, body, updated_at:new Date().toISOString() }, { onConflict:"user_id,entry_date" }); }
+    await fetchJournal(); if(!silent) toast("保存しました");
+  }
+  async function openJournal(){ if(!journalDate) journalDate=new Date(); await fetchJournal(); renderJournal(); }
+  function renderJournal(){
+    const j=$("#journal"); j.innerHTML="";
+    const head=document.createElement("div"); head.className="j-head";
+    const label=journalDate.getFullYear()+"年"+(journalDate.getMonth()+1)+"月"+journalDate.getDate()+"日（"+WDN[journalDate.getDay()]+"）";
+    head.innerHTML='<button id="jPrev" aria-label="前の日">‹</button><div class="d">'+label+'</div><button id="jNext" aria-label="次の日">›</button><button class="j-today" id="jToday">今日</button>';
+    j.appendChild(head);
+    const ta=document.createElement("textarea"); ta.className="j-body"; ta.id="jBody"; ta.placeholder="今日のできごと、思ったことを書く…";
+    const ex=entryFor(ymd(journalDate)); ta.value=ex?ex.body:"";
+    j.appendChild(ta);
+    const sr=document.createElement("div"); sr.className="j-saverow"; sr.innerHTML='<button class="j-save" id="jSave">保存</button>'; j.appendChild(sr);
+    if(journalEntries.length){
+      const rec=document.createElement("div"); rec.className="j-recent"; rec.innerHTML='<div class="lbl">これまでの記録</div>';
+      journalEntries.slice(0,30).forEach(e=>{
+        const d=parseYmd(e.entry_date);
+        const btn=document.createElement("button"); btn.className="j-entry";
+        btn.innerHTML='<div class="ed">'+(d.getMonth()+1)+"月"+d.getDate()+"日（"+WDN[d.getDay()]+"）"+'</div><div class="es"></div>';
+        btn.querySelector(".es").textContent=e.body.replace(/\s+/g," ").slice(0,40);
+        btn.onclick=async()=>{ await persistJournal(true); journalDate=parseYmd(e.entry_date); renderJournal(); };
+        rec.appendChild(btn);
+      });
+      j.appendChild(rec);
+    }
+    $("#jPrev").onclick=async()=>{ await persistJournal(true); journalDate=new Date(journalDate.getFullYear(),journalDate.getMonth(),journalDate.getDate()-1); renderJournal(); };
+    $("#jNext").onclick=async()=>{ await persistJournal(true); journalDate=new Date(journalDate.getFullYear(),journalDate.getMonth(),journalDate.getDate()+1); renderJournal(); };
+    $("#jToday").onclick=async()=>{ await persistJournal(true); journalDate=new Date(); renderJournal(); };
+    $("#jSave").onclick=async()=>{ await persistJournal(false); renderJournal(); };
+  }
+  async function switchMode(mode){
+    if(appMode==="journal" && mode!=="journal") await persistJournal(true);
+    appMode=mode;
+    document.querySelectorAll(".tn").forEach(x=>x.classList.toggle("active", x.dataset.mode===mode));
+    $("#taskArea").style.display = mode==="tasks"?"":"none";
+    $("#journal").style.display = mode==="journal"?"":"none";
+    if(mode==="journal") openJournal();
+  }
+
   /* ---------- タスク詳細（コメント／ピン／アーカイブ／削除） ---------- */
   async function loadComments(id){
     const el=$("#cList"); if(!el) return;
@@ -862,6 +943,7 @@
     setupVoice();
     $("#searchInput").addEventListener("input",()=>{ searchQuery=$("#searchInput").value; render(); });
     document.querySelectorAll(".vt").forEach(btn=>{ btn.onclick=()=>{ document.querySelectorAll(".vt").forEach(x=>x.classList.remove("active")); btn.classList.add("active"); viewMode=btn.dataset.view; render(); }; });
+    document.querySelectorAll(".tn").forEach(btn=>{ btn.onclick=()=>switchMode(btn.dataset.mode); });
     $("#modalBack").addEventListener("click",(e)=>{ if(e.target===$("#modalBack")) closeModal(); });
     setInterval(()=>{ render(); }, 60*1000);
     document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ fetchTasks(); } });
