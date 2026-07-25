@@ -123,6 +123,10 @@
   .j-entry{width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:11px 14px;margin-bottom:8px;cursor:pointer;font-family:inherit;box-shadow:var(--shadow)}
   .j-entry .ed{font-size:11.5px;color:var(--accent-deep);margin-bottom:3px}
   .j-entry .es{font-size:12.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .j-ai{border:1px solid var(--line);background:var(--panel);color:var(--accent-deep);border-radius:20px;padding:10px 20px;font-size:13px;cursor:pointer;font-family:inherit;box-shadow:var(--shadow);width:100%;margin-top:16px}
+  .j-ai:hover{border-color:var(--accent)}
+  #aiOut{white-space:pre-wrap;line-height:1.85;font-size:13.5px;color:var(--ink);max-height:52vh;overflow-y:auto}
+  #aiNote{font-size:11px;color:var(--ink-soft);margin-top:10px}
 
   header{margin-bottom:22px}
   .brand{display:flex;align-items:baseline;gap:12px}
@@ -681,6 +685,7 @@
     const ex=entryFor(ymd(journalDate)); ta.value=ex?ex.body:"";
     j.appendChild(ta);
     const sr=document.createElement("div"); sr.className="j-saverow"; sr.innerHTML='<button class="j-save" id="jSave">保存</button>'; j.appendChild(sr);
+    const aiBtn=document.createElement("button"); aiBtn.className="j-ai"; aiBtn.textContent="AIでふりかえり"; aiBtn.onclick=analyzeJournal; j.appendChild(aiBtn);
     if(journalEntries.length){
       const rec=document.createElement("div"); rec.className="j-recent"; rec.innerHTML='<div class="lbl">これまでの記録</div>';
       journalEntries.slice(0,30).forEach(e=>{
@@ -725,6 +730,24 @@
     j.appendChild(hint);
     $("#jcPrev").onclick=()=>{ jCal.m--; if(jCal.m<0){ jCal.m=11; jCal.y--; } renderJournal(); };
     $("#jcNext").onclick=()=>{ jCal.m++; if(jCal.m>11){ jCal.m=0; jCal.y++; } renderJournal(); };
+  }
+  async function analyzeJournal(){
+    if(!journalEntries || journalEntries.length<2){ toast("もう少し書きためてから試してみてください"); return; }
+    await persistJournal(true); // 直近の入力も反映
+    const m=modalOpen("AIでふりかえり");
+    const out=document.createElement("div"); out.id="aiOut"; out.textContent="分析中… 少しお待ちください。"; m.content.appendChild(out);
+    const note=document.createElement("div"); note.id="aiNote"; note.textContent="※ AIによる参考です。分析のあいだ、日記の本文が一時的にAIへ送られます。"; m.content.appendChild(note);
+    addActions(m.actions,[{label:"閉じる",cls:"ghost",on:closeModal}]);
+    const entries=journalEntries.slice(0,40).map(e=>({ date:e.entry_date, body:e.body }));
+    try{
+      const { data, error } = await client.functions.invoke("analyze-journal", { body:{ entries } });
+      const el=$("#aiOut"); if(!el) return;
+      if(error){ el.textContent="うまく分析できませんでした。少し時間をおいて試してください。"; return; }
+      if(data && data.error==="no_key"){ el.textContent="AIキーが設定されていません（GEMINI_API_KEY）。"; return; }
+      if(data && data.error==="few"){ el.textContent="もう少し日記を書きためてから試してみてください。"; return; }
+      if(!data || data.error || !data.text){ el.textContent="うまく分析できませんでした。少し時間をおいて試してください。"; return; }
+      el.textContent=data.text;
+    }catch(e){ const el=$("#aiOut"); if(el) el.textContent="通信に失敗しました。少し時間をおいて試してください。"; }
   }
   async function switchMode(mode){
     if(appMode==="journal" && mode!=="journal") await persistJournal(true);
