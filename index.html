@@ -128,6 +128,23 @@
   #aiOut{white-space:pre-wrap;line-height:1.85;font-size:13.5px;color:var(--ink);max-height:52vh;overflow-y:auto}
   #aiNote{font-size:11px;color:var(--ink-soft);margin-top:10px}
 
+  /* 傾向タブ */
+  .tr-sec{margin-bottom:30px}
+  .tr-lbl{font-size:11px;letter-spacing:.14em;color:var(--ink-soft);margin:0 2px 12px}
+  .tr-bars{display:flex;gap:6px;align-items:flex-end;padding:0 2px}
+  .tr-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+  .tr-barwrap{width:100%;height:110px;display:flex;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .tr-bar{width:100%;background:var(--accent);border-radius:7px 7px 0 0;min-height:4px}
+  .tr-cap{font-size:9.5px;color:var(--ink-soft);white-space:nowrap}
+  .tr-th{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+  .tr-thname{flex:0 0 92px;font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tr-thbarwrap{flex:1;height:8px;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .tr-thbar{height:100%;background:var(--accent);border-radius:6px}
+  .tr-thct{flex:0 0 auto;font-size:11.5px;color:var(--ink-soft);width:22px;text-align:right}
+  .tr-item{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:8px;box-shadow:var(--shadow)}
+  .tr-idate{font-size:11.5px;color:var(--accent-deep);margin-bottom:3px}
+  .tr-isum{font-size:13px;color:var(--ink);line-height:1.6}
+
   header{margin-bottom:22px}
   .brand{display:flex;align-items:baseline;gap:12px}
   h1{font-size:19px;font-weight:600;letter-spacing:.14em;margin:0;color:var(--ink)}
@@ -177,7 +194,7 @@
   .cal-day.blank{background:transparent;cursor:default}
   .cal-day.today{border-color:var(--today)}
   .cal-day.sel{background:var(--accent-deep);color:#faf9f6}
-  .cal-day .dot{width:5px;height:5px;border-radius:50%;background:var(--accent2)}
+  .cal-day .dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
   .cal-day.sel .dot{background:#faf9f6}
   .cal-daylist{margin-top:20px}
   .cal-daylabel{font-size:11px;letter-spacing:.14em;color:var(--ink-soft);margin:0 4px 8px}
@@ -274,6 +291,7 @@
   <div class="topnav" id="topNav">
     <button class="tn active" data-mode="tasks">タスク</button>
     <button class="tn" data-mode="journal">日記</button>
+    <button class="tn" data-mode="trends">傾向</button>
   </div>
 
   <div id="taskArea">
@@ -321,6 +339,7 @@
   </div><!-- /taskArea -->
 
   <div id="journal" style="display:none"></div>
+  <div id="trends" style="display:none"></div>
 </div>
 </div>
 
@@ -372,7 +391,7 @@
   const $ = s => document.querySelector(s);
   let tasks = [], filter = "active", currentUser = null, channel = null, wired = false;
   let lists = [], currentListId = null, searchQuery = "", viewMode = "list";
-  let appMode = "tasks", journalDate = null, journalEntries = [], journalView = "write";
+  let appMode = "tasks", journalDate = null, journalEntries = [], journalView = "write", insights = [];
   const jCal = { y:null, m:null };
   const calView = { y:null, m:null, sel:null };
   const timers = {};
@@ -747,6 +766,16 @@
       if(data && data.error==="few"){ el.textContent="もう少し日記を書きためてから試してみてください。"; return; }
       if(!data || data.error || !data.text){ el.textContent="分析できませんでした（診断用の詳細）：\n"+JSON.stringify(data, null, 2); return; }
       el.textContent=data.text;
+      // 傾向タブ用に結果を記録（気分・話題・まとめがあれば）
+      if(typeof data.mood==="number" || data.summary || (data.themes && data.themes.length)){
+        const ds=entries.map(e=>e.date).sort();
+        try{ await client.from("journal_insights").insert({
+          from_date: ds[0]||null, to_date: ds[ds.length-1]||null,
+          mood: (typeof data.mood==="number")?data.mood:null,
+          themes: (data.themes&&data.themes.length)?data.themes.slice(0,5):null,
+          summary: data.summary||null, entry_count: entries.length
+        }); }catch(_){}
+      }
     }catch(e){ const el=$("#aiOut"); if(el) el.textContent="通信に失敗しました。少し時間をおいて試してください。"; }
   }
   async function switchMode(mode){
@@ -755,7 +784,63 @@
     document.querySelectorAll(".tn").forEach(x=>x.classList.toggle("active", x.dataset.mode===mode));
     $("#taskArea").style.display = mode==="tasks"?"":"none";
     $("#journal").style.display = mode==="journal"?"":"none";
+    $("#trends").style.display = mode==="trends"?"":"none";
     if(mode==="journal") openJournal();
+    if(mode==="trends") openTrends();
+  }
+
+  /* ---------- 傾向タブ ---------- */
+  async function fetchInsights(){ const { data }=await client.from("journal_insights").select("*").eq("user_id",currentUser.id).order("created_at",{ascending:true}); insights=data||[]; }
+  async function openTrends(){ const c=$("#trends"); c.innerHTML='<div class="loading">読み込み中…</div>'; await fetchInsights(); renderTrends(); }
+  function renderTrends(){
+    const c=$("#trends"); c.innerHTML="";
+    if(!insights.length){
+      c.innerHTML='<div class="empty" style="padding:52px 20px"><span class="mark">◦</span>日記タブで「AIでふりかえり」を押すと、<br>ここに気分や話題の傾向が記録されていきます。</div>';
+      return;
+    }
+    // 気分の推移
+    const moodItems=insights.filter(i=>typeof i.mood==="number");
+    if(moodItems.length){
+      const sec=document.createElement("div"); sec.className="tr-sec";
+      sec.innerHTML='<div class="tr-lbl">気分の推移（1〜5）</div>';
+      const chart=document.createElement("div"); chart.className="tr-bars";
+      moodItems.slice(-14).forEach(i=>{
+        const d=new Date(i.created_at);
+        const col=document.createElement("div"); col.className="tr-col";
+        const wrap=document.createElement("div"); wrap.className="tr-barwrap";
+        const bar=document.createElement("div"); bar.className="tr-bar"; bar.style.height=(Math.max(1,Math.min(5,i.mood))/5*104)+"px"; wrap.appendChild(bar);
+        const cap=document.createElement("div"); cap.className="tr-cap"; cap.textContent=(d.getMonth()+1)+"/"+d.getDate();
+        col.appendChild(wrap); col.appendChild(cap); chart.appendChild(col);
+      });
+      sec.appendChild(chart); c.appendChild(sec);
+    }
+    // よく出る話題
+    const freq={};
+    insights.forEach(i=>(i.themes||[]).forEach(t=>{ const k=String(t).trim(); if(k) freq[k]=(freq[k]||0)+1; }));
+    const themes=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    if(themes.length){
+      const sec=document.createElement("div"); sec.className="tr-sec";
+      sec.innerHTML='<div class="tr-lbl">よく出る話題</div>';
+      const max=themes[0][1];
+      themes.forEach(([name,ct])=>{
+        const row=document.createElement("div"); row.className="tr-th";
+        row.innerHTML='<div class="tr-thname"></div><div class="tr-thbarwrap"><div class="tr-thbar" style="width:'+(ct/max*100)+'%"></div></div><div class="tr-thct">'+ct+'</div>';
+        row.querySelector(".tr-thname").textContent=name; sec.appendChild(row);
+      });
+      c.appendChild(sec);
+    }
+    // ふりかえりの記録
+    const sec=document.createElement("div"); sec.className="tr-sec";
+    sec.innerHTML='<div class="tr-lbl">ふりかえりの記録</div>';
+    insights.slice().reverse().forEach(i=>{
+      const d=new Date(i.created_at);
+      const item=document.createElement("div"); item.className="tr-item";
+      const mood=(typeof i.mood==="number")?"　気分 "+i.mood+"/5":"";
+      item.innerHTML='<div class="tr-idate">'+(d.getMonth()+1)+"月"+d.getDate()+"日"+mood+'</div><div class="tr-isum"></div>';
+      item.querySelector(".tr-isum").textContent=i.summary||"（まとめなし）";
+      sec.appendChild(item);
+    });
+    c.appendChild(sec);
   }
 
   /* ---------- タスク詳細（コメント／ピン／アーカイブ／削除） ---------- */
