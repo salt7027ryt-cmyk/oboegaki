@@ -365,7 +365,8 @@
   const $ = s => document.querySelector(s);
   let tasks = [], filter = "active", currentUser = null, channel = null, wired = false;
   let lists = [], currentListId = null, searchQuery = "", viewMode = "list";
-  let appMode = "tasks", journalDate = null, journalEntries = [];
+  let appMode = "tasks", journalDate = null, journalEntries = [], journalView = "write";
+  const jCal = { y:null, m:null };
   const calView = { y:null, m:null, sel:null };
   const timers = {};
 
@@ -656,6 +657,14 @@
   async function openJournal(){ if(!journalDate) journalDate=new Date(); await fetchJournal(); renderJournal(); }
   function renderJournal(){
     const j=$("#journal"); j.innerHTML="";
+    const tg=document.createElement("div"); tg.className="viewtoggle"; tg.style.marginBottom="16px";
+    [["write","書く"],["calendar","カレンダー"]].forEach(([v,lb])=>{
+      const b=document.createElement("button"); b.className="vt"+(journalView===v?" active":""); b.textContent=lb;
+      b.onclick=async()=>{ if(journalView==="write" && v!=="write") await persistJournal(true); if(v==="calendar"){ jCal.y=journalDate.getFullYear(); jCal.m=journalDate.getMonth(); } journalView=v; renderJournal(); };
+      tg.appendChild(b);
+    });
+    j.appendChild(tg);
+    if(journalView==="calendar"){ renderJournalCalendar(j); return; }
     const head=document.createElement("div"); head.className="j-head";
     const label=journalDate.getFullYear()+"年"+(journalDate.getMonth()+1)+"月"+journalDate.getDate()+"日（"+WDN[journalDate.getDay()]+"）";
     head.innerHTML='<button id="jPrev" aria-label="前の日">‹</button><div class="d">'+label+'</div><button id="jNext" aria-label="次の日">›</button><button class="j-today" id="jToday">今日</button>';
@@ -680,6 +689,33 @@
     $("#jNext").onclick=async()=>{ await persistJournal(true); journalDate=new Date(journalDate.getFullYear(),journalDate.getMonth(),journalDate.getDate()+1); renderJournal(); };
     $("#jToday").onclick=async()=>{ await persistJournal(true); journalDate=new Date(); renderJournal(); };
     $("#jSave").onclick=async()=>{ await persistJournal(false); renderJournal(); };
+  }
+  function renderJournalCalendar(j){
+    const now=new Date();
+    if(jCal.y===null){ jCal.y=journalDate.getFullYear(); jCal.m=journalDate.getMonth(); }
+    const y=jCal.y, m=jCal.m;
+    const head=document.createElement("div"); head.className="cal-head";
+    head.innerHTML='<button id="jcPrev" aria-label="前の月">‹</button><div class="m">'+y+'年'+(m+1)+'月</div><button id="jcNext" aria-label="次の月">›</button>';
+    j.appendChild(head);
+    const grid=document.createElement("div"); grid.className="cal-grid";
+    WDN.forEach(w=>{ const c=document.createElement("div"); c.className="cal-wd"; c.textContent=w; grid.appendChild(c); });
+    const startWd=new Date(y,m,1).getDay(), dim=new Date(y,m+1,0).getDate();
+    for(let i=0;i<startWd;i++){ const c=document.createElement("div"); c.className="cal-day blank"; grid.appendChild(c); }
+    for(let d=1; d<=dim; d++){
+      const dateObj=new Date(y,m,d), ds=ymd(dateObj);
+      const c=document.createElement("div"); c.className="cal-day";
+      if(sameDay(dateObj,now)) c.classList.add("today");
+      if(sameDay(dateObj,journalDate)) c.classList.add("sel");
+      c.innerHTML='<span>'+d+'</span>'+(entryFor(ds)?'<span class="dot"></span>':'');
+      c.onclick=()=>{ journalDate=dateObj; journalView="write"; renderJournal(); };
+      grid.appendChild(c);
+    }
+    j.appendChild(grid);
+    const hint=document.createElement("div"); hint.className="cal-daylabel"; hint.style.marginTop="16px"; hint.style.textAlign="center";
+    hint.textContent="ドットの日に記録があります。日付を選ぶと開きます。";
+    j.appendChild(hint);
+    $("#jcPrev").onclick=()=>{ jCal.m--; if(jCal.m<0){ jCal.m=11; jCal.y--; } renderJournal(); };
+    $("#jcNext").onclick=()=>{ jCal.m++; if(jCal.m>11){ jCal.m=0; jCal.y++; } renderJournal(); };
   }
   async function switchMode(mode){
     if(appMode==="journal" && mode!=="journal") await persistJournal(true);
