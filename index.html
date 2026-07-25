@@ -75,6 +75,9 @@
   #modalContent p{font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;line-height:1.7}
   #modalContent input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;
     font-size:15px;font-family:inherit;color:var(--ink);outline:none;margin-bottom:6px}
+  #modalContent select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 12px;
+    font-size:14px;font-family:inherit;color:var(--ink);outline:none;margin-bottom:10px}
+  #modalContent .qc-lab{font-size:11px;color:var(--ink-soft);margin-bottom:3px}
   #modalContent .code{font-size:22px;letter-spacing:.14em;text-align:center;color:var(--ink);background:var(--bg);
     border:1px dashed var(--line);border-radius:10px;padding:14px;margin-bottom:6px;user-select:all}
   .menu-list{display:flex;flex-direction:column;gap:8px}
@@ -606,28 +609,33 @@
     ]);
     setTimeout(()=>{ const el=$("#joinCode"); if(el) el.focus(); }, 60);
   }
+  async function getOrCreateToken(listId){
+    const { data } = await client.from("capture_tokens").select("token").eq("list_id", listId).limit(1);
+    if(data && data.length) return data[0].token;
+    const token=(window.crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now()+""+Math.random())).replace(/-/g,"");
+    const { error } = await client.from("capture_tokens").insert({ token, list_id: listId });
+    return error ? null : token;
+  }
   async function uiQuickCapture(){
-    let token;
-    const { data } = await client.from("capture_tokens").select("token").eq("list_id", currentListId).limit(1);
-    if(data && data.length) token=data[0].token;
-    else {
-      token = (window.crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now()+""+Math.random())).replace(/-/g,"");
-      const { error } = await client.from("capture_tokens").insert({ token, list_id: currentListId });
-      if(error){ toast("設定に失敗しました"); return; }
-    }
     const url = SB_URL + "/functions/v1/capture";
-    const list = lists.find(l=>l.id===currentListId);
     const m=modalOpen("クイック追加の設定");
-    m.content.innerHTML =
-      '<p>iPhoneのショートカットから、開かずに「'+(list?list.name:"")+'」へ追加できます。下の2つをショートカット設定で使います（手順はチャットでご案内します）。</p>'+
-      '<div style="font-size:11px;color:var(--ink-soft);margin-bottom:3px">送信先URL</div>'+
-      '<div class="code" style="font-size:11.5px;letter-spacing:0;word-break:break-all">'+url+'</div>'+
-      '<div style="font-size:11px;color:var(--ink-soft);margin:8px 0 3px">合言葉（token）</div>'+
-      '<div class="code" style="font-size:13px;letter-spacing:.03em;word-break:break-all">'+token+'</div>';
+    const wrap=document.createElement("div");
+    const intro=document.createElement("p"); intro.textContent="ショートカットから、選んだリストへ開かず追加できます。保存先を選んで、下の2つをショートカット設定で使ってください。"; wrap.appendChild(intro);
+    const l1=document.createElement("div"); l1.className="qc-lab"; l1.textContent="保存先リスト"; wrap.appendChild(l1);
+    const sel=document.createElement("select"); sel.id="qcList";
+    lists.forEach(l=>{ const o=document.createElement("option"); o.value=l.id; o.textContent=l.name; sel.appendChild(o); });
+    sel.value=currentListId; wrap.appendChild(sel);
+    const l2=document.createElement("div"); l2.className="qc-lab"; l2.textContent="送信先URL"; wrap.appendChild(l2);
+    const urlBox=document.createElement("div"); urlBox.className="code"; urlBox.style.cssText="font-size:11.5px;letter-spacing:0;word-break:break-all"; urlBox.textContent=url; wrap.appendChild(urlBox);
+    const l3=document.createElement("div"); l3.className="qc-lab"; l3.textContent="合言葉（token）"; wrap.appendChild(l3);
+    const tokBox=document.createElement("div"); tokBox.className="code"; tokBox.id="qcToken"; tokBox.style.cssText="font-size:13px;letter-spacing:.03em;word-break:break-all"; tokBox.textContent="…"; wrap.appendChild(tokBox);
+    m.content.appendChild(wrap);
+    async function refresh(){ tokBox.textContent="…"; const tk=await getOrCreateToken(sel.value); tokBox.textContent=tk||"(取得できませんでした)"; }
+    sel.onchange=refresh; await refresh();
     addActions(m.actions,[
       {label:"閉じる",cls:"ghost",on:closeModal},
       {label:"URLをコピー",cls:"ghost",on:async()=>{ try{ await navigator.clipboard.writeText(url); }catch(e){} toast("URLをコピー"); }},
-      {label:"合言葉をコピー",cls:"primary",on:async()=>{ try{ await navigator.clipboard.writeText(token); }catch(e){} toast("合言葉をコピー"); }}
+      {label:"合言葉をコピー",cls:"primary",on:async()=>{ try{ await navigator.clipboard.writeText(tokBox.textContent); }catch(e){} toast("合言葉をコピー"); }}
     ]);
   }
   function uiInvite(){
@@ -706,7 +714,8 @@
       const c=document.createElement("div"); c.className="cal-day";
       if(sameDay(dateObj,now)) c.classList.add("today");
       if(sameDay(dateObj,journalDate)) c.classList.add("sel");
-      c.innerHTML='<span>'+d+'</span>'+(entryFor(ds)?'<span class="dot"></span>':'');
+      const dot = entryFor(ds) || anyTaskOnDate(dateObj);
+      c.innerHTML='<span>'+d+'</span>'+(dot?'<span class="dot"></span>':'');
       c.onclick=()=>{ journalDate=dateObj; journalView="write"; renderJournal(); };
       grid.appendChild(c);
     }
@@ -743,6 +752,29 @@
     });
     el.scrollTop=el.scrollHeight;
   }
+  function confirmTaskDelete(id){
+    const t=tasks.find(x=>x.id===id);
+    const m=modalOpen("削除の確認");
+    const p=document.createElement("p");
+    p.textContent="「"+(t?t.title:"")+"」を削除します。よろしいですか？（元に戻せません）";
+    m.content.appendChild(p);
+    addActions(m.actions,[
+      {label:"キャンセル",cls:"ghost",on:closeModal},
+      {label:"削除する",cls:"danger",on:async()=>{ closeModal(); await remove(id); }}
+    ]);
+  }
+  function uiMoveTask(id){
+    const t=tasks.find(x=>x.id===id); if(!t) return;
+    const m=modalOpen("リストを移動");
+    const wrap=document.createElement("div"); wrap.className="menu-list";
+    const targets=lists.filter(l=>l.id!==t.list_id);
+    if(targets.length===0){ const e=document.createElement("div"); e.className="cempty"; e.style.padding="6px 2px"; e.textContent="移動先のリストがありません"; wrap.appendChild(e); }
+    targets.forEach(l=>{ const b=document.createElement("button"); b.className="menu-item"; b.textContent=l.name;
+      b.onclick=async()=>{ closeModal(); const { error }=await client.from("tasks").update({ list_id:l.id }).eq("id",id); if(error){ toast("移動できませんでした"); return; } await fetchTasks(); toast("「"+l.name+"」へ移動しました"); };
+      wrap.appendChild(b); });
+    m.content.appendChild(wrap);
+    addActions(m.actions,[{label:"閉じる",cls:"ghost",on:closeModal}]);
+  }
   function openTaskDetail(id){
     const t=tasks.find(x=>x.id===id); if(!t) return;
     const m=modalOpen(t.title);
@@ -764,7 +796,8 @@
       [t.done?"未完了に戻す":"完了にする", async()=>{ closeModal(); await toggle(id); }, false],
       [t.pinned?"ピン留めを外す":"ピン留め", async()=>{ closeModal(); await client.from("tasks").update({pinned:!t.pinned}).eq("id",id); await fetchTasks(); }, false],
       [t.archived_at?"アーカイブから戻す":"アーカイブする", async()=>{ closeModal(); await client.from("tasks").update({archived_at: t.archived_at?null:new Date().toISOString()}).eq("id",id); await fetchTasks(); toast(t.archived_at?"戻しました":"アーカイブしました"); }, false],
-      ["削除", async()=>{ closeModal(); await remove(id); }, true]
+      ["リストを移動", ()=>uiMoveTask(id), false],
+      ["削除", ()=>{ closeModal(); confirmTaskDelete(id); }, true]
     ];
     items.forEach(([label,fn,danger])=>{ const b=document.createElement("button"); b.className="menu-item"+(danger?" danger":""); b.textContent=label; b.onclick=fn; menu.appendChild(b); });
     wrap.appendChild(menu);
@@ -853,13 +886,15 @@
     li.querySelector(".titletext").textContent=t.title;
     if(t.due) li.querySelector(".due span").textContent=fmtDue(t.due);
     li.querySelector(".check").onclick=(e)=>{ e.stopPropagation(); toggle(t.id); };
-    li.querySelector(".del").onclick=(e)=>{ e.stopPropagation(); remove(t.id); };
+    li.querySelector(".del").onclick=(e)=>{ e.stopPropagation(); confirmTaskDelete(t.id); };
     li.querySelector(".body").onclick=()=>openTaskDetail(t.id);
     return li;
   }
   /* ---------- カレンダー ---------- */
   function sameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
   function tasksOnDate(d){ return tasks.filter(t=> t.list_id===currentListId && !t.archived_at && t.due && sameDay(new Date(t.due), d)); }
+  function anyTaskOnDate(d){ return tasks.some(t=> !t.archived_at && t.due && sameDay(new Date(t.due), d)); }
+  function hasJournalOn(d){ return !!(journalEntries && journalEntries.some(e=>e.entry_date===ymd(d))); }
   function renderCalendar(area){
     const now=new Date();
     if(calView.y===null){ calView.y=now.getFullYear(); calView.m=now.getMonth(); calView.sel=new Date(now.getFullYear(),now.getMonth(),now.getDate()); }
@@ -876,8 +911,8 @@
       const c=document.createElement("div"); c.className="cal-day";
       if(sameDay(dateObj, now)) c.classList.add("today");
       if(calView.sel && sameDay(dateObj, calView.sel)) c.classList.add("sel");
-      const dayT=tasksOnDate(dateObj);
-      c.innerHTML='<span>'+d+'</span>'+(dayT.length?'<span class="dot"></span>':'');
+      const dot = tasksOnDate(dateObj).length || hasJournalOn(dateObj);
+      c.innerHTML='<span>'+d+'</span>'+(dot?'<span class="dot"></span>':'');
       c.onclick=()=>{ calView.sel=dateObj; render(); };
       grid.appendChild(c);
     }
@@ -1031,7 +1066,7 @@
     wireApp();
     await fetchLists();
     const c=cacheGet(); if(c.length){ tasks=c; render(); }
-    fetchTasks(); subscribe();
+    fetchTasks(); subscribe(); fetchJournal();
     if(("Notification" in window) && Notification.permission==="granted") enablePush();
     processUrlActions();
   }
