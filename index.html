@@ -128,6 +128,18 @@
   #aiOut{white-space:pre-wrap;line-height:1.85;font-size:13.5px;color:var(--ink);max-height:52vh;overflow-y:auto}
   #aiNote{font-size:11px;color:var(--ink-soft);margin-top:10px}
 
+  /* 対話 */
+  .chat-thread{margin:6px 0 14px;display:flex;flex-direction:column;gap:10px}
+  .chat-intro{font-size:12.8px;color:var(--ink-soft);line-height:1.75;padding:8px 2px}
+  .chat-bub{max-width:86%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word}
+  .chat-bub.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--line);color:var(--ink);box-shadow:var(--shadow)}
+  .chat-bub.me{align-self:flex-end;background:var(--accent-deep);color:#faf9f6}
+  .chat-bub.thinking{opacity:.55}
+  .chat-row{display:flex;gap:8px;align-items:center}
+  .chat-row input{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 13px;font-size:14px;font-family:inherit;color:var(--ink);outline:none}
+  .chat-row button{border:none;background:var(--accent-deep);color:#faf9f6;border-radius:16px;padding:10px 18px;font-size:13px;cursor:pointer;font-family:inherit;flex:0 0 auto}
+  .chat-start{width:100%;border:1px solid var(--line);background:var(--panel);color:var(--accent-deep);border-radius:20px;padding:11px;font-size:13.5px;cursor:pointer;font-family:inherit;box-shadow:var(--shadow)}
+
   /* 傾向タブ */
   .tr-sec{margin-bottom:30px}
   .tr-lbl{font-size:11px;letter-spacing:.14em;color:var(--ink-soft);margin:0 2px 12px}
@@ -689,13 +701,14 @@
   function renderJournal(){
     const j=$("#journal"); j.innerHTML="";
     const tg=document.createElement("div"); tg.className="viewtoggle"; tg.style.marginBottom="16px";
-    [["write","書く"],["calendar","カレンダー"]].forEach(([v,lb])=>{
+    [["write","書く"],["chat","対話"],["calendar","カレンダー"]].forEach(([v,lb])=>{
       const b=document.createElement("button"); b.className="vt"+(journalView===v?" active":""); b.textContent=lb;
-      b.onclick=async()=>{ if(journalView==="write" && v!=="write") await persistJournal(true); if(v==="calendar"){ jCal.y=journalDate.getFullYear(); jCal.m=journalDate.getMonth(); } journalView=v; renderJournal(); };
+      b.onclick=async()=>{ if(journalView==="write" && v!=="write") await persistJournal(true); if(v==="calendar"){ jCal.y=journalDate.getFullYear(); jCal.m=journalDate.getMonth(); } if(v==="chat"){ await fetchChat(); } journalView=v; renderJournal(); };
       tg.appendChild(b);
     });
     j.appendChild(tg);
     if(journalView==="calendar"){ renderJournalCalendar(j); return; }
+    if(journalView==="chat"){ renderChat(j); return; }
     const head=document.createElement("div"); head.className="j-head";
     const label=journalDate.getFullYear()+"年"+(journalDate.getMonth()+1)+"月"+journalDate.getDate()+"日（"+WDN[journalDate.getDay()]+"）";
     head.innerHTML='<button id="jPrev" aria-label="前の日">‹</button><div class="d">'+label+'</div><button id="jNext" aria-label="次の日">›</button><button class="j-today" id="jToday">今日</button>';
@@ -722,6 +735,63 @@
     $("#jToday").onclick=async()=>{ await persistJournal(true); journalDate=new Date(); renderJournal(); };
     $("#jSave").onclick=async()=>{ await persistJournal(false); renderJournal(); };
   }
+  /* ---------- 日記：対話（内省） ---------- */
+  let chatMsgs=[], chatBusy=false;
+  async function fetchChat(){
+    const { data }=await client.from("journal_chats").select("*").eq("user_id",currentUser.id).eq("entry_date",ymd(journalDate)).order("created_at",{ascending:true});
+    chatMsgs=(data||[]).map(m=>({role:m.role,content:m.content}));
+  }
+  function chatBubble(role,content){ const d=document.createElement("div"); d.className="chat-bub "+(role==="user"?"me":"ai"); d.textContent=content; return d; }
+  function renderChat(j){
+    const lbl=document.createElement("div"); lbl.className="cal-daylabel";
+    lbl.textContent=(journalDate.getMonth()+1)+"月"+journalDate.getDate()+"日（"+WDN[journalDate.getDay()]+"）の対話";
+    j.appendChild(lbl);
+    const thread=document.createElement("div"); thread.className="chat-thread"; thread.id="chatThread";
+    if(chatMsgs.length===0){
+      const intro=document.createElement("div"); intro.className="chat-intro";
+      intro.textContent="今日をふりかえって、AIとやさしく対話できます。まずはAIから、そっと問いかけてもらいましょう。";
+      thread.appendChild(intro);
+    } else {
+      chatMsgs.forEach(m=>thread.appendChild(chatBubble(m.role,m.content)));
+    }
+    j.appendChild(thread);
+    const row=document.createElement("div"); row.className="chat-row";
+    if(chatMsgs.length===0){
+      const start=document.createElement("button"); start.className="chat-start"; start.textContent=chatBusy?"考え中…":"AIと対話をはじめる"; start.disabled=chatBusy; start.onclick=()=>sendChat(null);
+      row.appendChild(start);
+    } else {
+      const inp=document.createElement("input"); inp.id="chatInput"; inp.placeholder="返信を書く…"; inp.autocomplete="off"; inp.disabled=chatBusy;
+      const send=document.createElement("button"); send.textContent="送信"; send.disabled=chatBusy;
+      send.onclick=()=>{ const t=inp.value.trim(); if(t){ inp.value=""; sendChat(t); } };
+      inp.addEventListener("keydown",e=>{ if(e.key==="Enter") send.click(); });
+      row.appendChild(inp); row.appendChild(send);
+    }
+    j.appendChild(row);
+    const th=$("#chatThread"); if(th) th.scrollTop=th.scrollHeight;
+    setTimeout(()=>{ const i=$("#chatInput"); if(i && !chatBusy) i.focus(); },50);
+  }
+  async function sendChat(userText){
+    if(chatBusy) return; chatBusy=true;
+    if(userText){
+      chatMsgs.push({role:"user",content:userText});
+      try{ await client.from("journal_chats").insert({ entry_date:ymd(journalDate), role:"user", content:userText }); }catch(_){}
+    }
+    renderJournal();
+    const th=$("#chatThread"); if(th){ const b=document.createElement("div"); b.className="chat-bub ai thinking"; b.textContent="考え中…"; th.appendChild(b); th.scrollTop=th.scrollHeight; }
+    let ok=false;
+    try{
+      const entry=entryFor(ymd(journalDate)); const entryText=entry?entry.body:"";
+      const { data, error }=await client.functions.invoke("analyze-journal", { body:{ mode:"chat", date:ymd(journalDate), entryText, history:chatMsgs.map(m=>({role:m.role,content:m.content})) } });
+      if(!error && data && data.text){
+        chatMsgs.push({role:"assistant",content:data.text});
+        try{ await client.from("journal_chats").insert({ entry_date:ymd(journalDate), role:"assistant", content:data.text }); }catch(_){}
+        ok=true;
+      }
+    }catch(e){}
+    chatBusy=false; renderJournal();
+    if(!ok) toast("うまく応答できませんでした。少し時間をおいて試してください。");
+  }
+
   function renderJournalCalendar(j){
     const now=new Date();
     if(jCal.y===null){ jCal.y=journalDate.getFullYear(); jCal.m=journalDate.getMonth(); }
