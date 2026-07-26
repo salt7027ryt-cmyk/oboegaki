@@ -781,7 +781,9 @@
     let ok=false;
     try{
       const entry=entryFor(ymd(journalDate)); const entryText=entry?entry.body:"";
-      const { data, error }=await client.functions.invoke("analyze-journal", { body:{ mode:"chat", date:ymd(journalDate), entryText, history:chatMsgs.map(m=>({role:m.role,content:m.content})) } });
+      let memory="";
+      try{ const { data:iv }=await client.from("journal_insights").select("created_at,summary,themes,mood").eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(3); memory=(iv||[]).map(i=>((i.created_at||"").slice(0,10)+"：気分"+(i.mood??"-")+" "+(i.summary||"")+"（"+((i.themes||[]).join("、"))+"）")).join(" / "); }catch(_){}
+      const { data, error }=await client.functions.invoke("analyze-journal", { body:{ mode:"chat", date:ymd(journalDate), entryText, memory, history:chatMsgs.map(m=>({role:m.role,content:m.content})) } });
       if(!error && data && data.text){
         chatMsgs.push({role:"assistant",content:data.text});
         try{ await client.from("journal_chats").insert({ entry_date:ymd(journalDate), role:"assistant", content:data.text }); }catch(_){}
@@ -828,8 +830,12 @@
     const note=document.createElement("div"); note.id="aiNote"; note.textContent="※ AIによる参考です。分析のあいだ、日記の本文が一時的にAIへ送られます。"; m.content.appendChild(note);
     addActions(m.actions,[{label:"閉じる",cls:"ghost",on:closeModal}]);
     const entries=journalEntries.slice(0,40).map(e=>({ date:e.entry_date, body:e.body }));
+    // 対話と過去の傾向も合わせて渡す（伴走者として統合分析）
+    let chats=[], prior=[];
+    try{ const { data }=await client.from("journal_chats").select("entry_date,role,content").eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(40); chats=(data||[]).reverse().map(m=>({date:m.entry_date, role:m.role, content:m.content})); }catch(_){}
+    try{ const { data }=await client.from("journal_insights").select("created_at,mood,themes,summary").eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(6); prior=(data||[]).reverse().map(i=>({date:(i.created_at||"").slice(0,10), mood:i.mood, themes:i.themes, summary:i.summary})); }catch(_){}
     try{
-      const { data, error } = await client.functions.invoke("analyze-journal", { body:{ entries } });
+      const { data, error } = await client.functions.invoke("analyze-journal", { body:{ entries, chats, priorInsights:prior } });
       const el=$("#aiOut"); if(!el) return;
       if(error){ el.textContent="呼び出しエラー：\n"+(error.message||JSON.stringify(error)); return; }
       if(data && data.error==="no_key"){ el.textContent="AIキーが設定されていません（GEMINI_API_KEY）。"; return; }
