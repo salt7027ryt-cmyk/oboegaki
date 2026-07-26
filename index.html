@@ -103,10 +103,13 @@
   .crow input{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;color:var(--ink);outline:none;margin:0}
   .crow button{border:none;background:var(--accent-deep);color:#faf9f6;border-radius:16px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:inherit;flex:0 0 auto}
 
-  /* 上部ナビ（タスク/日記） */
-  .topnav{display:flex;gap:4px;margin-bottom:16px}
-  .tn{border:1px solid transparent;background:transparent;color:var(--ink-soft);font-family:inherit;font-size:13px;letter-spacing:.06em;padding:6px 15px;border-radius:16px;cursor:pointer;transition:.15s}
-  .tn.active{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);border-color:var(--line)}
+  /* 上部ナビ（タスク/日記/傾向）— セグメント式 */
+  .topnav{display:inline-flex;gap:2px;margin-bottom:20px;background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:3px}
+  .tn{border:none;background:transparent;color:var(--ink-soft);font-family:inherit;font-size:13px;letter-spacing:.08em;padding:7px 18px;border-radius:16px;cursor:pointer;transition:.18s}
+  .tn.active{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+  .tn:not(.active):hover{color:var(--ink)}
+  #taskArea,#journal,#trends{animation:fadeIn .3s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
 
   /* 日記 */
   .j-head{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
@@ -142,20 +145,46 @@
 
   /* 傾向タブ */
   .tr-sec{margin-bottom:30px}
-  .tr-lbl{font-size:11px;letter-spacing:.14em;color:var(--ink-soft);margin:0 2px 12px}
+  .tr-lbl{font-size:11px;letter-spacing:.16em;color:var(--ink-soft);margin:0 2px 14px;display:flex;align-items:center;gap:8px}
+  .tr-lbl::before{content:"";width:16px;height:1px;background:var(--accent);flex:0 0 auto}
   .tr-bars{display:flex;gap:6px;align-items:flex-end;padding:0 2px}
   .tr-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
   .tr-barwrap{width:100%;height:110px;display:flex;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
-  .tr-bar{width:100%;background:var(--accent);border-radius:7px 7px 0 0;min-height:4px}
+  .tr-bar{width:100%;background:linear-gradient(180deg,var(--accent),var(--accent-deep));border-radius:7px 7px 2px 2px;min-height:4px;transition:height .3s ease}
   .tr-cap{font-size:9.5px;color:var(--ink-soft);white-space:nowrap}
   .tr-th{display:flex;align-items:center;gap:10px;margin-bottom:9px}
   .tr-thname{flex:0 0 92px;font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tr-thbarwrap{flex:1;height:8px;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
-  .tr-thbar{height:100%;background:var(--accent);border-radius:6px}
+  .tr-thbar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-deep));border-radius:6px;transition:width .3s ease}
   .tr-thct{flex:0 0 auto;font-size:11.5px;color:var(--ink-soft);width:22px;text-align:right}
   .tr-item{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:8px;box-shadow:var(--shadow)}
   .tr-idate{font-size:11.5px;color:var(--accent-deep);margin-bottom:3px}
   .tr-isum{font-size:13px;color:var(--ink);line-height:1.6}
+
+  /* 自己分析パネル（あなたという人） */
+  .sp-card{position:relative;background:linear-gradient(180deg,#fbfaf6,#f7f4ec);border:1px solid var(--line);
+    border-radius:18px;padding:20px 20px 18px;margin-bottom:30px;box-shadow:var(--shadow);overflow:hidden}
+  .sp-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+  .sp-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .sp-ttl{font-size:14.5px;font-weight:600;letter-spacing:.12em;color:var(--ink)}
+  .sp-when{font-size:10.5px;color:var(--ink-soft);letter-spacing:.04em;white-space:nowrap}
+  .sp-empty{font-size:12.8px;color:var(--ink-soft);line-height:1.85;margin:0 0 16px}
+  .sp-portrait{font-size:14px;color:var(--ink);line-height:1.95;margin:0 0 18px;letter-spacing:.01em}
+  .sp-grid{display:flex;flex-direction:column;gap:14px;margin-bottom:16px}
+  .sp-block{}
+  .sp-blbl{font-size:10.5px;letter-spacing:.14em;color:var(--accent-deep);margin-bottom:7px}
+  .sp-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .sp-chip{font-size:12px;color:var(--ink);background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:4px 12px;letter-spacing:.02em;line-height:1.5}
+  .sp-focus{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:16px}
+  .sp-flbl{font-size:10.5px;letter-spacing:.14em;color:var(--today);margin-bottom:6px}
+  .sp-ftext{font-size:13px;color:var(--ink);line-height:1.85;margin:0}
+  .sp-btn{width:100%;border:none;background:var(--accent-deep);color:#faf9f6;border-radius:22px;
+    padding:11px;font-size:13px;letter-spacing:.08em;cursor:pointer;font-family:inherit;transition:.18s}
+  .sp-btn:hover{background:var(--ink)}
+  .sp-btn:disabled{opacity:.55;cursor:default}
+  .sp-btn.ghost{background:transparent;color:var(--accent-deep);border:1px solid var(--line)}
+  .sp-btn.ghost:hover{background:var(--panel);border-color:var(--accent)}
 
   header{margin-bottom:22px}
   .brand{display:flex;align-items:baseline;gap:12px}
@@ -404,6 +433,7 @@
   let tasks = [], filter = "active", currentUser = null, channel = null, wired = false;
   let lists = [], currentListId = null, searchQuery = "", viewMode = "list";
   let appMode = "tasks", journalDate = null, journalEntries = [], journalView = "write", insights = [];
+  let selfPortrait = null, selfBusy = false;
   const jCal = { y:null, m:null };
   const calView = { y:null, m:null, sel:null };
   const timers = {};
@@ -867,11 +897,72 @@
 
   /* ---------- 傾向タブ ---------- */
   async function fetchInsights(){ const { data }=await client.from("journal_insights").select("*").eq("user_id",currentUser.id).order("created_at",{ascending:true}); insights=data||[]; }
-  async function openTrends(){ const c=$("#trends"); c.innerHTML='<div class="loading">読み込み中…</div>'; await fetchInsights(); renderTrends(); }
+  async function fetchSelfPortrait(){
+    try{ const { data }=await client.from("self_portraits").select("*").eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(1); selfPortrait=(data&&data[0])||null; }catch(_){ selfPortrait=null; }
+  }
+  async function openTrends(){ const c=$("#trends"); c.innerHTML='<div class="loading">読み込み中…</div>'; await Promise.all([fetchInsights(), fetchSelfPortrait()]); renderTrends(); }
+
+  function fillChips(host, cls, arr){
+    const box=host.querySelector("."+cls); if(!box) return;
+    (arr||[]).forEach(t=>{ const s=document.createElement("span"); s.className="sp-chip"; s.textContent=t; box.appendChild(s); });
+  }
+  function renderSelfPanel(c){
+    const p=selfPortrait;
+    const sec=document.createElement("section"); sec.className="sp-card";
+    const hasData=(insights.length>0)||selfBusy;
+    if(!p){
+      sec.innerHTML='<div class="sp-head"><span class="sp-ttl">あなたという人</span></div>'
+        +'<p class="sp-empty">日記や対話を重ねると、あなたの価値観・強み・意識するとよいことを、AIがそっとまとめます。</p>'
+        +'<button class="sp-btn" id="spRun"'+(selfBusy?' disabled':'')+'>'+(selfBusy?'分析中…':'自己分析する')+'</button>';
+      c.appendChild(sec);
+      const b=sec.querySelector("#spRun"); if(b) b.onclick=runSelfAnalysis;
+      return;
+    }
+    const d=new Date(p.created_at);
+    sec.innerHTML=''
+      +'<div class="sp-head"><span class="sp-ttl">あなたという人</span>'
+      +'<span class="sp-when">'+(d.getMonth()+1)+'月'+d.getDate()+'日 更新</span></div>'
+      +'<p class="sp-portrait"></p>'
+      +'<div class="sp-grid">'
+      +'  <div class="sp-block"><div class="sp-blbl">大切にしていること</div><div class="sp-chips vv"></div></div>'
+      +'  <div class="sp-block"><div class="sp-blbl">あなたの強み</div><div class="sp-chips ss"></div></div>'
+      +'  <div class="sp-block"><div class="sp-blbl">意識するとラクになること</div><div class="sp-chips ww"></div></div>'
+      +'</div>'
+      +'<div class="sp-focus"><div class="sp-flbl">これから意識するとよいこと</div><p class="sp-ftext"></p></div>'
+      +'<button class="sp-btn ghost" id="spRun"'+(selfBusy?' disabled':'')+'>'+(selfBusy?'分析中…':'自己分析を更新する')+'</button>';
+    c.appendChild(sec);
+    sec.querySelector(".sp-portrait").textContent=p.portrait||"";
+    fillChips(sec, "vv", p.core_values);
+    fillChips(sec, "ss", p.strengths);
+    fillChips(sec, "ww", p.watch);
+    const ft=sec.querySelector(".sp-ftext"); if(ft) ft.textContent=p.focus||"";
+    // 空グループは隠す
+    sec.querySelectorAll(".sp-block").forEach(bl=>{ if(!bl.querySelector(".sp-chip")) bl.style.display="none"; });
+    if(!(p.focus||"").trim()) sec.querySelector(".sp-focus").style.display="none";
+    const b=sec.querySelector("#spRun"); if(b) b.onclick=runSelfAnalysis;
+  }
+  async function runSelfAnalysis(){
+    if(selfBusy) return;
+    selfBusy=true; renderTrends();
+    try{
+      const { data, error }=await client.functions.invoke("analyze-journal", { body:{ mode:"persona" } });
+      if(error){ toast("分析できませんでした。少し時間をおいて試してください。"); }
+      else if(data && data.error==="few"){ toast("もう少し日記を書きためてから試してみてください。"); }
+      else if(data && data.error){ toast("うまくまとめられませんでした。もう一度試してください。"); }
+      else if(data && data.portrait){ await fetchSelfPortrait(); toast("自己分析を更新しました"); }
+      else { toast("うまくまとめられませんでした。"); }
+    }catch(e){ toast("通信に失敗しました。"); }
+    selfBusy=false; renderTrends();
+  }
+
   function renderTrends(){
     const c=$("#trends"); c.innerHTML="";
+    // 自己分析パネルは常に最上部（材料がなくても案内を出す）
+    renderSelfPanel(c);
     if(!insights.length){
-      c.innerHTML='<div class="empty" style="padding:52px 20px"><span class="mark">◦</span>日記タブで「AIでふりかえり」を押すと、<br>ここに気分や話題の傾向が記録されていきます。</div>';
+      const e=document.createElement("div"); e.className="empty"; e.style.padding="40px 20px 24px";
+      e.innerHTML='<span class="mark">◦</span>日記タブで「AIでふりかえり」を押すと、<br>ここに気分や話題の移り変わりが記録されていきます。';
+      c.appendChild(e);
       return;
     }
     // 気分の推移
